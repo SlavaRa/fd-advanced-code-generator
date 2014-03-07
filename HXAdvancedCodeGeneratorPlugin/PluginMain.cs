@@ -274,14 +274,11 @@ namespace HXADCodeGeneratorPlugin
                 if(m.Success)
                 {
                     string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
                     if (mText.Trim().Length == text.Trim().Length) Sci.LineDelete();
-                    else
-                    {
-                        int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                        int end = start + mText.Length;
-                        Sci.SetSel(start, end);
-                        Sci.ReplaceSel("");
-                    }
+                    else Sci.ReplaceSel("");
                     return;
                 }
                 line++;
