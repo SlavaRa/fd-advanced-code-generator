@@ -152,6 +152,7 @@ namespace HXADCodeGeneratorPlugin
         
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
+            if (!GetLangIsValid()) return;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             switch (job)
             {
@@ -321,6 +322,13 @@ namespace HXADCodeGeneratorPlugin
                 line++;
             }
             return false;
+        }
+
+        private static bool GetLangIsValid()
+        {
+            IProject project = PluginBase.CurrentProject;
+            if (project == null) return false;
+            return project.Language.StartsWith("haxe");
         }
 
         private static void ShowChangeClass(FoundDeclaration found)
