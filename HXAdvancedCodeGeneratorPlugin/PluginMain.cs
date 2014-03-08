@@ -189,6 +189,17 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.MakeClassExtern:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        MakeClassExtern(Sci, inClass);
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
             }
         }
         
@@ -201,7 +212,7 @@ namespace HXADCodeGeneratorPlugin
             if (!GetDeclarationIsValid(Sci, found)) return false;
             if (found.member == null && found.inClass != ClassModel.VoidClass)
             {
-                ShowChangeClassFinalAccess(found);
+                ShowChangeClass(found);
                 return true;
             }
             if ((found.member.Flags & (FlagType.Static | FlagType.Constructor)) == 0 && (found.member.Flags & FlagType.Function) > 0)
@@ -278,7 +289,7 @@ namespace HXADCodeGeneratorPlugin
             return false;
         }
 
-        private static void ShowChangeClassFinalAccess(FoundDeclaration found)
+        private static void ShowChangeClass(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             if((found.inClass.Flags & FlagType.Final) == 0)
@@ -290,6 +301,11 @@ namespace HXADCodeGeneratorPlugin
             {
                 string label = @"Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, found.inClass));
+            }
+            if((found.inClass.Flags & FlagType.Extern) == 0)
+            {
+                string label = @"Make extern";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, found.inClass));
             }
             CompletionList.Show(known, false);
         }
@@ -350,6 +366,26 @@ namespace HXADCodeGeneratorPlugin
                 line++;
             }
         }
+
+        private static void MakeClassExtern(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            int line = member.LineFrom;
+            while (line <= member.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                Match m = Regex.Match(text, classPattern);
+                if (m.Success)
+                {
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
+                    Sci.ReplaceSel(@"extern " + mText.TrimStart());
+                    return;
+                }
+                line++;
+            }
+        }
     }
 
     class FoundDeclaration
@@ -374,6 +410,7 @@ namespace HXADCodeGeneratorPlugin
     {
         MakeClassFinal,
         MakeClassNotFinal,
+        MakeClassExtern,
         MakeMethodFinal,
         MakeMethodNotFinal,
     }
