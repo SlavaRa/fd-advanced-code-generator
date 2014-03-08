@@ -159,7 +159,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeClassFinal(Sci, inClass);
+                        MakeMethodFinal(Sci, inClass, classPattern);
                     }
                     finally
                     {
@@ -170,7 +170,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMethodFinal(Sci, member);
+                        MakeMethodFinal(Sci, member, methodPattern);
                     }
                     finally
                     {
@@ -198,7 +198,7 @@ namespace HXADCodeGeneratorPlugin
             int line = Sci.LineFromPosition(position);
             string text = Sci.GetLine(line);
             FoundDeclaration found = GetDeclarationAtLine(Sci, line);
-            if (!IsValidDeclaration(Sci, found)) return false;
+            if (!GetDeclarationIsValid(Sci, found)) return false;
             if (found.member == null && found.inClass != ClassModel.VoidClass)
             {
                 ShowChangeClassFinalAccess(found);
@@ -230,7 +230,7 @@ namespace HXADCodeGeneratorPlugin
             return result;
         }
 
-        private static bool IsValidDeclaration(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
+        private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
         {
             if (found.GetIsEmpty()) return false;
             MemberModel member = found.member;
@@ -249,8 +249,8 @@ namespace HXADCodeGeneratorPlugin
                             string mText = m.Groups[0].Value;
                             int start = Sci.PositionFromLine(line);
                             int end = start + text.IndexOf(mText) + mText.Length;
-                            if (end > Sci.CurrentPos) return true;
-                            else return false;
+                            if (end > pos) return true;
+                            return false;
                         }
                     }
                     line++;
@@ -269,8 +269,8 @@ namespace HXADCodeGeneratorPlugin
                         string mText = m.Groups[0].Value;
                         int start = Sci.PositionFromLine(line);
                         int end = start + text.IndexOf(mText) + mText.Length;
-                        if (end > Sci.CurrentPos) return true;
-                        else return false;
+                        if (end > pos) return true;
+                        return false;
                     }
                 }
                 line++;
@@ -310,33 +310,13 @@ namespace HXADCodeGeneratorPlugin
             CompletionList.Show(known, false);
         }
 
-        private static void MakeClassFinal(ScintillaNet.ScintillaControl Sci, ClassModel aClass)
-        {
-            int line = aClass.LineFrom;
-            while (line <= aClass.LineTo)
-            {
-                string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, classPattern);
-                if (m.Success)
-                {
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"@:final " + mText.TrimStart());
-                    return;
-                }
-                line++;
-            }
-        }
-
-        private static void MakeMethodFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        private static void MakeMethodFinal(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
         {
             int line = member.LineFrom;
             while(line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, methodPattern);
+                Match m = Regex.Match(text, memberPattern);
                 if(m.Success)
                 {
                     string mText = m.Groups[0].Value;
