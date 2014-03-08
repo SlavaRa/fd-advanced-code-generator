@@ -26,6 +26,7 @@ namespace HXADCodeGeneratorPlugin
         private string settingFilename;
 
         private const string methodPattern = @"function\s+[a-z_0-9.]+\s*\(";
+        private const string classPattern = @"class\s+[a-zA-Z_0-9.]+\s*";
 
         #region Required Properties
 
@@ -154,6 +155,17 @@ namespace HXADCodeGeneratorPlugin
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             switch (job)
             {
+                case GeneratorJobType.MakeClassFinal:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        MakeClassFinal(Sci, inClass);
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
                 case GeneratorJobType.MakeMethodFinal:
                     Sci.BeginUndoAction();
                     try
@@ -185,9 +197,13 @@ namespace HXADCodeGeneratorPlugin
             int line = Sci.LineFromPosition(position);
             string text = Sci.GetLine(line);
             FoundDeclaration found = GetDeclarationAtLine(Sci, line);
-            if(found.GetIsEmpty()) return false;
-            if(found.member == null || (found.member.Flags & (FlagType.Static | FlagType.Constructor)) > 0) return false;
-            if((found.member.Flags & FlagType.Function) > 0)
+            if (!IsValidDeclaration(Sci, found)) return false;
+            if (found.member == null && found.inClass != ClassModel.VoidClass)
+            {
+                ShowChangeClassFinalAccess(found);
+                return true;
+            }
+            else if ((found.member.Flags & (FlagType.Static | FlagType.Constructor)) == 0 && (found.member.Flags & FlagType.Function) > 0)
             {
                 ShowChangeMethodFinalAccess(found);
                 return true;
@@ -205,43 +221,107 @@ namespace HXADCodeGeneratorPlugin
                 foreach (MemberModel member in aClass.Members)
                 {
                     if (member.LineFrom > line || member.LineTo < line) continue;
-                    while (line <= member.LineTo)
+                    result.member = member;
+                    return result;
+                }
+                return result;
+            }
+            return result;
+        }
+
+        private static bool IsValidDeclaration(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
+        {
+            if (found.GetIsEmpty()) return false;
+            MemberModel member = found.member;
+            int pos = Sci.CurrentPos;
+            int line = Sci.LineFromPosition(pos);
+            if (member != null)
+            {
+                while (line <= member.LineTo)
+                {
+                    string text = Sci.GetLine(line);
+                    if (!string.IsNullOrEmpty(text))
                     {
-                        Match m = Regex.Match(Sci.GetLine(line), methodPattern);
+                        Match m = Regex.Match(text, methodPattern);
                         if (m.Success)
                         {
                             string mText = m.Groups[0].Value;
-                            string text = Sci.GetLine(line);
                             int start = Sci.PositionFromLine(line);
                             int end = start + text.IndexOf(mText) + mText.Length;
-                            if (end > Sci.CurrentPos)
-                            {
-                                result.member = member;
-                                return result;
-                            }
+                            if (end > Sci.CurrentPos) return true;
+                            else return false;
                         }
-                        line++;
+                    }
+                    line++;
+                }
+                return false;
+            }
+            ClassModel aClass = found.inClass;
+            while (line <= aClass.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    Match m = Regex.Match(text, classPattern);
+                    if (m.Success)
+                    {
+                        string mText = m.Groups[0].Value;
+                        int start = Sci.PositionFromLine(line);
+                        int end = start + text.IndexOf(mText) + mText.Length;
+                        if (end > Sci.CurrentPos) return true;
+                        else return false;
                     }
                 }
-                    return result;
+                line++;
             }
-            return result;
+            return false;
+        }
+
+        private static void ShowChangeClassFinalAccess(FoundDeclaration found)
+        {
+            List<ICompletionListItem> known = new List<ICompletionListItem>();
+            if((found.inClass.Flags & FlagType.Final) == 0)
+            {
+                string label = @"Make final";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, found.inClass));
+            }
+            CompletionList.Show(known, false);
         }
 
         private static void ShowChangeMethodFinalAccess(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            if((found.member.Flags & FlagType.Final) == 0)
+            if ((found.member.Flags & FlagType.Final) == 0)
             {
-                string label = "Make final";//TODO: localize it
+                string label = @"Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, found.inClass));
             }
             else
             {
-                string label = "Make not final";//TODO: localize it
+                string label = @"Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, found.inClass));
             }
             CompletionList.Show(known, false);
+        }
+
+        private static void MakeClassFinal(ScintillaNet.ScintillaControl Sci, ClassModel aClass)
+        {
+            int line = aClass.LineFrom;
+            while (line <= aClass.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                Match m = Regex.Match(text, classPattern);
+                if (m.Success)
+                {
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
+                    Sci.ReplaceSel(@"@:final " + mText.TrimStart());
+                    return;
+                }
+                line++;
+            }
         }
 
         private static void MakeMethodFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
@@ -306,6 +386,7 @@ namespace HXADCodeGeneratorPlugin
     /// </summary>
     public enum GeneratorJobType : int
     {
+        MakeClassFinal,
         MakeMethodFinal,
         MakeMethodNotFinal,
     }
