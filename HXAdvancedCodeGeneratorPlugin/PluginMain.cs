@@ -203,7 +203,7 @@ namespace HXADCodeGeneratorPlugin
                 ShowChangeClassFinalAccess(found);
                 return true;
             }
-            else if ((found.member.Flags & (FlagType.Static | FlagType.Constructor)) == 0 && (found.member.Flags & FlagType.Function) > 0)
+            if ((found.member.Flags & (FlagType.Static | FlagType.Constructor)) == 0 && (found.member.Flags & FlagType.Function) > 0)
             {
                 ShowChangeMethodFinalAccess(found);
                 return true;
