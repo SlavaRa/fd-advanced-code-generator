@@ -154,7 +154,7 @@ namespace HXADCodeGeneratorPlugin
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             switch (job)
             {
-                case GeneratorJobType.MakeFinal:
+                case GeneratorJobType.MakeMethodFinal:
                     Sci.BeginUndoAction();
                     try
                     {
@@ -165,7 +165,7 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
-                case GeneratorJobType.MakeNotFinal:
+                case GeneratorJobType.MakeMethodNotFinal:
                     Sci.BeginUndoAction();
                     try
                     {
@@ -234,12 +234,12 @@ namespace HXADCodeGeneratorPlugin
             if((found.member.Flags & FlagType.Final) == 0)
             {
                 string label = "Make final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeFinal, found.member, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, found.inClass));
             }
             else
             {
                 string label = "Make not final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeNotFinal, found.member, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, found.inClass));
             }
             CompletionList.Show(known, false);
         }
@@ -306,8 +306,8 @@ namespace HXADCodeGeneratorPlugin
     /// </summary>
     public enum GeneratorJobType : int
     {
-        MakeFinal,
-        MakeNotFinal,
+        MakeMethodFinal,
+        MakeMethodNotFinal,
     }
 
     /// <summary>
