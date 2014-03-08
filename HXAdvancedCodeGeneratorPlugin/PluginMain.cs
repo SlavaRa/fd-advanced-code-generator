@@ -223,6 +223,17 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.RemoveStaticModifier:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        RemoveStaticModifier(Sci, member);
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
             }
         }
         
@@ -238,7 +249,7 @@ namespace HXADCodeGeneratorPlugin
                 ShowChangeClass(found);
                 return true;
             }
-            if ((found.member.Flags & (FlagType.Static | FlagType.Constructor)) == 0 && (found.member.Flags & FlagType.Function) > 0)
+            if ((found.member.Flags & FlagType.Constructor) == 0 && (found.member.Flags & FlagType.Function) > 0)
             {
                 ShowChangeMethod(found);
                 return true;
@@ -341,20 +352,28 @@ namespace HXADCodeGeneratorPlugin
         private static void ShowChangeMethod(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            if ((found.member.Flags & FlagType.Final) == 0)
-            {
-                string label = @"Make final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, null));
-            }
-            else
-            {
-                string label = @"Make not final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
+            if ((found.member.Flags & FlagType.Static) == 0)
+            { 
+                if ((found.member.Flags & FlagType.Final) == 0)
+                {
+                    string label = @"Make final";//TODO: localize it
+                    known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, null));
+                }
+                else
+                {
+                    string label = @"Make not final";//TODO: localize it
+                    known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
+                }
             }
             if ((found.member.Flags & FlagType.Static) == 0)
             {
                 string label = @"Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
+            }
+            else
+            {
+                string label = @"Remove static modifier";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
             }
             CompletionList.Show(known, false);
         }
@@ -459,6 +478,26 @@ namespace HXADCodeGeneratorPlugin
                 line++;
             }
         }
+
+        private static void RemoveStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            int line = member.LineFrom;
+            while (line <= member.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                Match m = Regex.Match(text, @"static\s");
+                if (m.Success)
+                {
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
+                    Sci.ReplaceSel("");
+                    return;
+                }
+                line++;
+            }
+        }
     }
 
     class FoundDeclaration
@@ -488,6 +527,7 @@ namespace HXADCodeGeneratorPlugin
         MakeMethodFinal,
         MakeMethodNotFinal,
         AddStaticModifier,
+        RemoveStaticModifier,
     }
 
     /// <summary>
