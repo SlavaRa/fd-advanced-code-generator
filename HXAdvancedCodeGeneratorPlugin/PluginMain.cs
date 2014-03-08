@@ -26,7 +26,7 @@ namespace HXADCodeGeneratorPlugin
         private string settingFilename;
 
         private const string methodPattern = @"function\s+[a-z_0-9.]+\s*\(";
-        private const string classPattern = @"class\s+[a-zA-Z_0-9.]+\s*";
+        private const string classPattern = @"class\s+[a-z_0-9.]+\s*";
 
         #region Required Properties
 
@@ -288,7 +288,7 @@ namespace HXADCodeGeneratorPlugin
                     string text = Sci.GetLine(line);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        Match m = Regex.Match(text, methodPattern);
+                        Match m = Regex.Match(text, methodPattern, RegexOptions.IgnoreCase);
                         if (m.Success)
                         {
                             string mText = m.Groups[0].Value;
@@ -308,7 +308,7 @@ namespace HXADCodeGeneratorPlugin
                 string text = Sci.GetLine(line);
                 if (!string.IsNullOrEmpty(text))
                 {
-                    Match m = Regex.Match(text, classPattern);
+                    Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
                     if (m.Success)
                     {
                         string mText = m.Groups[0].Value;
@@ -384,7 +384,7 @@ namespace HXADCodeGeneratorPlugin
             while(line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, memberPattern);
+                Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
                 if(m.Success)
                 {
                     string mText = m.Groups[0].Value;
@@ -425,7 +425,7 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, classPattern);
+                Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
                 if (m.Success)
                 {
                     string mText = m.Groups[0].Value;
@@ -465,7 +465,7 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, memberPattern);
+                Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
                 if (m.Success)
                 {
                     string mText = m.Groups[0].Value;
