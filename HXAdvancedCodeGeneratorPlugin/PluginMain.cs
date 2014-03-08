@@ -159,7 +159,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMethodFinal(Sci, inClass, classPattern);
+                        MakeMemberFinal(Sci, inClass, classPattern);
                     }
                     finally
                     {
@@ -170,7 +170,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMethodFinal(Sci, member, methodPattern);
+                        MakeMemberFinal(Sci, member, methodPattern);
                     }
                     finally
                     {
@@ -211,7 +211,18 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
-
+                case GeneratorJobType.AddStaticModifier:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        MakeMemberNotFinal(Sci, member);
+                        AddStaticModifier(Sci, member, methodPattern);
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
             }
         }
         
@@ -229,7 +240,7 @@ namespace HXADCodeGeneratorPlugin
             }
             if ((found.member.Flags & (FlagType.Static | FlagType.Constructor)) == 0 && (found.member.Flags & FlagType.Function) > 0)
             {
-                ShowChangeMethodFinalAccess(found);
+                ShowChangeMethod(found);
                 return true;
             }
             return false;
@@ -327,7 +338,7 @@ namespace HXADCodeGeneratorPlugin
             CompletionList.Show(known, false);
         }
 
-        private static void ShowChangeMethodFinalAccess(FoundDeclaration found)
+        private static void ShowChangeMethod(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             if ((found.member.Flags & FlagType.Final) == 0)
@@ -340,10 +351,15 @@ namespace HXADCodeGeneratorPlugin
                 string label = @"Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
             }
+            if ((found.member.Flags & FlagType.Static) == 0)
+            {
+                string label = @"Add static modifier";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
+            }
             CompletionList.Show(known, false);
         }
 
-        private static void MakeMethodFinal(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
+        private static void MakeMemberFinal(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
         {
             int line = member.LineFrom;
             while(line <= member.LineTo)
@@ -423,6 +439,26 @@ namespace HXADCodeGeneratorPlugin
                 line++;
             }
         }
+
+        private static void AddStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
+        {
+            int line = member.LineFrom;
+            while (line <= member.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                Match m = Regex.Match(text, memberPattern);
+                if (m.Success)
+                {
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
+                    Sci.ReplaceSel(@"static " + mText.TrimStart());
+                    return;
+                }
+                line++;
+            }
+        }
     }
 
     class FoundDeclaration
@@ -451,6 +487,7 @@ namespace HXADCodeGeneratorPlugin
         MakeClassNotExtern,
         MakeMethodFinal,
         MakeMethodNotFinal,
+        AddStaticModifier,
     }
 
     /// <summary>
