@@ -200,6 +200,18 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.MakeClassNotExtern:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        MakeClassNotExtern(Sci, inClass);
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
+
             }
         }
         
@@ -307,6 +319,11 @@ namespace HXADCodeGeneratorPlugin
                 string label = @"Make extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, found.inClass));
             }
+            else
+            {
+                string label = @"Make not extern";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, found.inClass));
+            }
             CompletionList.Show(known, false);
         }
 
@@ -386,6 +403,26 @@ namespace HXADCodeGeneratorPlugin
                 line++;
             }
         }
+
+        private static void MakeClassNotExtern(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            int line = member.LineFrom;
+            while (line <= member.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                Match m = Regex.Match(text, @"extern\s");
+                if (m.Success)
+                {
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
+                    Sci.ReplaceSel("");
+                    return;
+                }
+                line++;
+            }
+        }
     }
 
     class FoundDeclaration
@@ -411,6 +448,7 @@ namespace HXADCodeGeneratorPlugin
         MakeClassFinal,
         MakeClassNotFinal,
         MakeClassExtern,
+        MakeClassNotExtern,
         MakeMethodFinal,
         MakeMethodNotFinal,
     }
