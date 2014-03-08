@@ -166,17 +166,6 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
-                case GeneratorJobType.MakeClassNotFinal:
-                    Sci.BeginUndoAction();
-                    try
-                    {
-                        MakeClassNotFinal(Sci, inClass);
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
                 case GeneratorJobType.MakeMethodFinal:
                     Sci.BeginUndoAction();
                     try
@@ -188,11 +177,12 @@ namespace HXADCodeGeneratorPlugin
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.MakeClassNotFinal:
                 case GeneratorJobType.MakeMethodNotFinal:
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMethodNotFinal(Sci, member);
+                        MakeMemberNotFinal(Sci, inClass ?? member);
                     }
                     finally
                     {
@@ -310,12 +300,12 @@ namespace HXADCodeGeneratorPlugin
             if ((found.member.Flags & FlagType.Final) == 0)
             {
                 string label = @"Make final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, null));
             }
             else
             {
                 string label = @"Make not final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
             }
             CompletionList.Show(known, false);
         }
@@ -334,27 +324,6 @@ namespace HXADCodeGeneratorPlugin
                     int end = start + mText.Length;
                     Sci.SetSel(start, end);
                     Sci.ReplaceSel(@"@:final " + mText.TrimStart());
-                    return;
-                }
-                line++;
-            }
-        }
-
-        private static void MakeClassNotFinal(ScintillaNet.ScintillaControl Sci, ClassModel aClass)
-        {
-            int line = aClass.LineFrom;
-            while (line <= aClass.LineTo)
-            {
-                string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, @"@:final\s");
-                if (m.Success)
-                {
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
-                    Sci.SetSel(start, end);
-                    if (mText.Trim().Length == text.Trim().Length) Sci.LineDelete();
-                    else Sci.ReplaceSel("");
                     return;
                 }
                 line++;
@@ -381,7 +350,7 @@ namespace HXADCodeGeneratorPlugin
             }
         }
 
-        private static void MakeMethodNotFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        private static void MakeMemberNotFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
             int line = member.LineFrom;
             while (line <= member.LineTo)
