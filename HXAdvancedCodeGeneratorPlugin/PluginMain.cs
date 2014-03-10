@@ -425,9 +425,10 @@ namespace HXADCodeGeneratorPlugin
             while(line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
-                if (m.Success)
+                if(!string.IsNullOrEmpty(text))
                 {
+                    Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
+                    if (!m.Success) continue;
                     m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
                     string mValue = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
@@ -450,11 +451,12 @@ namespace HXADCodeGeneratorPlugin
                 {
                     Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
                     if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
+                    m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
+                    string mValue = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                    int end = start + mValue.Length;
                     Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"extern " + mText.TrimStart());
+                    Sci.ReplaceSel(@"extern " + mValue.TrimStart());
                     return;
                 }
                 line++;
@@ -471,11 +473,11 @@ namespace HXADCodeGeneratorPlugin
                 {
                     Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
                     if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
+                    string mValue = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                    int end = start + mValue.Length;
                     Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"static " + mText.TrimStart());
+                    Sci.ReplaceSel(@"static " + mValue.TrimStart());
                     return;
                 }
                 line++;
