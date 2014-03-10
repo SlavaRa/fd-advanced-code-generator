@@ -25,9 +25,11 @@ namespace HXADCodeGeneratorPlugin
         private Settings settingObject;
         private string settingFilename;
 
-        private const string methodPattern = @"function\s+[a-z_0-9.]+\s*\(";
-        private const string classPattern = @"class\s+[a-z_0-9.]+\s*";
-        private const string varPattern = @"var\s+[a-z_0-9.]+\s*";
+        private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([a-z ]+)(function|var)", RegexOptions.Compiled);
+        private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
+        private const string methodPattern = "function\\s+[a-z_0-9.]+\\s*\\(";
+        private const string classPattern = "class\\s+[a-z_0-9.]+\\s*";
+        private const string varPattern = "var\\s+[a-z_0-9.]+\\s*";
 
         #region Required Properties
 
@@ -184,7 +186,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        RemoveModifier(Sci, inClass ?? member, "@:final");
+                        RemoveModifier(Sci, inClass ?? member, "@:final\\s");
                     }
                     finally
                     {
@@ -206,7 +208,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        RemoveModifier(Sci, inClass, "extern");
+                        RemoveModifier(Sci, inClass, "extern\\s");
                     }
                     finally
                     {
@@ -219,7 +221,7 @@ namespace HXADCodeGeneratorPlugin
                     {
                         if ((member.Flags & FlagType.Function) > 0)
                         {
-                            RemoveModifier(Sci, member, "@:final");
+                            RemoveModifier(Sci, member, "@:final\\s");
                             AddStaticModifier(Sci, member, methodPattern);
                         }
                         else AddStaticModifier(Sci, member, varPattern);
@@ -233,7 +235,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        RemoveModifier(Sci, member, "static");
+                        RemoveModifier(Sci, member, "static\\s");
                     }
                     finally
                     {
@@ -428,13 +430,15 @@ namespace HXADCodeGeneratorPlugin
                 if(!string.IsNullOrEmpty(text))
                 {
                     Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
-                    if (!m.Success) continue;
-                    m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
-                    string mValue = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                    int end = start + mValue.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"@:final " + mValue.TrimStart());
+                    if (m.Success)
+                    {
+                        m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
+                        string mValue = m.Groups[0].Value;
+                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                        int end = start + mValue.Length;
+                        Sci.SetSel(start, end);
+                        Sci.ReplaceSel(@"@:final " + mValue.TrimStart());
+                    }
                     return;
                 }
                 line++;
@@ -450,13 +454,15 @@ namespace HXADCodeGeneratorPlugin
                 if (!string.IsNullOrEmpty(text))
                 {
                     Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
-                    if (!m.Success) continue;
-                    m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
-                    string mValue = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                    int end = start + mValue.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"extern " + mValue.TrimStart());
+                    if (m.Success)
+                    {
+                        //m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
+                        string mValue = m.Groups[0].Value;
+                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                        int end = start + mValue.Length;
+                        Sci.SetSel(start, end);
+                        Sci.ReplaceSel("extern " + mValue.TrimStart());
+                    }
                     return;
                 }
                 line++;
@@ -472,13 +478,16 @@ namespace HXADCodeGeneratorPlugin
                 if (!string.IsNullOrEmpty(text))
                 {
                     Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
-                    if (!m.Success) continue;
-                    string mValue = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                    int end = start + mValue.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"static " + mValue.TrimStart());
-                    return;
+                    if (m.Success)
+                    {
+                        m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
+                        string mValue = m.Groups[0].Value;
+                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                        Sci.SetSel(start, start + mValue.Length);
+                        Sci.ReplaceSel("static " + mValue.TrimStart());
+                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, line);
+                        return;
+                    }
                 }
                 line++;
             }
@@ -492,16 +501,34 @@ namespace HXADCodeGeneratorPlugin
                 string text = Sci.GetLine(line);
                 if (!string.IsNullOrEmpty(text))
                 {
-                    Match m = Regex.Match(text, modifier + @"\s");
-                    if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel("");
-                    return;
+                    Match m = Regex.Match(text, modifier);
+                    if (m.Success)
+                    {
+                        string mValue = m.Groups[0].Value;
+                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                        Sci.SetSel(start, start + mValue.Length);
+                        Sci.ReplaceSel("");
+                        return;
+                    }
                 }
                 line++;
+            }
+        }
+
+        private static void FixModifiersLocation(ScintillaNet.ScintillaControl Sci, int line)
+        {
+            string text = Sci.GetLine(line);
+            Match m = reModifiers.Match(text);
+            if (m.Success)
+            {
+                Group decl = m.Groups[2];
+                Match m2 = reModifier.Match(decl.Value);
+                if (m2.Success)
+                {
+                    int start = Sci.PositionFromLine(line);
+                    Sci.SetSel(start + decl.Index, start + decl.Length);
+                    Sci.ReplaceSel((m2.Value + decl.Value.Remove(m2.Index, m2.Length)).TrimEnd());
+                }
             }
         }
     }
