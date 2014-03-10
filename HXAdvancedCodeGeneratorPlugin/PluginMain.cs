@@ -346,22 +346,25 @@ namespace HXADCodeGeneratorPlugin
         private static void ShowChangeClass(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            if((found.inClass.Flags & FlagType.Final) == 0)
+            FlagType flags = found.inClass.Flags;
+            bool isFinal = (flags & FlagType.Final) > 0;
+            bool isExtern = (flags & FlagType.Extern) > 0;
+            if (!isFinal)
             {
                 string label = @"Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, found.inClass));
             }
-            else
-            {
-                string label = @"Make not final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, found.inClass));
-            }
-            if((found.inClass.Flags & FlagType.Extern) == 0)
+            if (!isExtern)
             {
                 string label = @"Make extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, found.inClass));
             }
-            else
+            if (isFinal)
+            {
+                string label = @"Make not final";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, found.inClass));
+            }
+            if (isExtern)
             {
                 string label = @"Make not extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, found.inClass));
@@ -371,26 +374,26 @@ namespace HXADCodeGeneratorPlugin
 
         private static void ShowChangeMethod(FoundDeclaration found)
         {
+            FlagType flags = found.member.Flags;
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            if ((found.member.Flags & FlagType.Static) == 0)
+            bool isStatic = (flags & FlagType.Static) > 0;
+            bool isFinal = (flags & FlagType.Final) > 0;
+            if (!isStatic && !isFinal)
             { 
-                if ((found.member.Flags & FlagType.Final) == 0)
-                {
-                    string label = @"Make final";//TODO: localize it
-                    known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, null));
-                }
-                else
-                {
-                    string label = @"Make not final";//TODO: localize it
-                    known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
-                }
+                string label = @"Make final";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, null));
             }
-            if ((found.member.Flags & FlagType.Static) == 0)
+            if (!isStatic)
             {
                 string label = @"Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
             }
-            else
+            if (!isStatic && isFinal)
+            {
+                string label = @"Make not final";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
+            }
+            if (isStatic)
             {
                 string label = @"Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
@@ -401,12 +404,14 @@ namespace HXADCodeGeneratorPlugin
         private static void ShowChangeVariable(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            if ((found.member.Flags & FlagType.Static) == 0)
+            FlagType flags = found.member.Flags;
+            bool isStatic = (flags & FlagType.Static) > 0;
+            if (!isStatic)
             {
                 string label = @"Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
             }
-            else
+            if (isStatic)
             {
                 string label = @"Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
@@ -421,7 +426,7 @@ namespace HXADCodeGeneratorPlugin
             {
                 string text = Sci.GetLine(line);
                 Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
-                if(m.Success)
+                if (m.Success)
                 {
                     m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
                     string mValue = m.Groups[0].Value;
@@ -441,9 +446,10 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, @"@:final\s");
-                if(m.Success)
+                if (!string.IsNullOrEmpty(text))
                 {
+                    Match m = Regex.Match(text, @"@:final\s");
+                    if (!m.Success) continue;
                     string mText = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
                     int end = start + mText.Length;
@@ -462,9 +468,10 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
-                if (m.Success)
+                if (!string.IsNullOrEmpty(text))
                 {
+                    Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
+                    if (!m.Success) continue;
                     string mText = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
                     int end = start + mText.Length;
@@ -482,9 +489,10 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, @"extern\s");
-                if (m.Success)
+                if (!string.IsNullOrEmpty(text))
                 {
+                    Match m = Regex.Match(text, @"extern\s");
+                    if (!m.Success) continue;
                     string mText = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
                     int end = start + mText.Length;
@@ -502,9 +510,10 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
-                if (m.Success)
+                if (!string.IsNullOrEmpty(text))
                 {
+                    Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
+                    if (!m.Success) continue;
                     string mText = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
                     int end = start + mText.Length;
@@ -522,9 +531,10 @@ namespace HXADCodeGeneratorPlugin
             while (line <= member.LineTo)
             {
                 string text = Sci.GetLine(line);
-                Match m = Regex.Match(text, @"static\s");
-                if (m.Success)
+                if (!string.IsNullOrEmpty(text))
                 {
+                    Match m = Regex.Match(text, @"static\s");
+                    if (!m.Success) continue;
                     string mText = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
                     int end = start + mText.Length;
@@ -535,11 +545,32 @@ namespace HXADCodeGeneratorPlugin
                 line++;
             }
         }
+
+        private static void AddInlineModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
+        {
+            int line = member.LineFrom;
+            while (line <= member.LineTo)
+            {
+                string text = Sci.GetLine(line);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
+                    if (!m.Success) continue;
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
+                    int end = start + mText.Length;
+                    Sci.SetSel(start, end);
+                    Sci.ReplaceSel(@"inline " + mText.TrimStart());
+                    return;
+                }
+                line++;
+            }
+        }
     }
 
     class FoundDeclaration
     {
-        public MemberModel member = null;
+        public MemberModel member;
         public ClassModel inClass = ClassModel.VoidClass;
 
         public FoundDeclaration()
@@ -565,6 +596,7 @@ namespace HXADCodeGeneratorPlugin
         MakeMethodNotFinal,
         AddStaticModifier,
         RemoveStaticModifier,
+        AddInlineModifier,
     }
 
     /// <summary>
