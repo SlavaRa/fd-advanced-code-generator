@@ -184,7 +184,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMemberNotFinal(Sci, inClass ?? member);
+                        RemoveModifier(Sci, inClass ?? member, "@:final");
                     }
                     finally
                     {
@@ -206,7 +206,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeClassNotExtern(Sci, inClass);
+                        RemoveModifier(Sci, inClass, "extern");
                     }
                     finally
                     {
@@ -219,7 +219,7 @@ namespace HXADCodeGeneratorPlugin
                     {
                         if ((member.Flags & FlagType.Function) > 0)
                         {
-                            MakeMemberNotFinal(Sci, member);
+                            RemoveModifier(Sci, member, "@:final");
                             AddStaticModifier(Sci, member, methodPattern);
                         }
                         else AddStaticModifier(Sci, member, varPattern);
@@ -233,7 +233,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        RemoveStaticModifier(Sci, member);
+                        RemoveModifier(Sci, member, "static");
                     }
                     finally
                     {
@@ -440,28 +440,6 @@ namespace HXADCodeGeneratorPlugin
             }
         }
 
-        private static void MakeMemberNotFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
-        {
-            int line = member.LineFrom;
-            while (line <= member.LineTo)
-            {
-                string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = Regex.Match(text, @"@:final\s");
-                    if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
-                    Sci.SetSel(start, end);
-                    if (mText.Trim().Length == text.Trim().Length) Sci.LineDelete();
-                    else Sci.ReplaceSel("");
-                    return;
-                }
-                line++;
-            }
-        }
-
         private static void MakeClassExtern(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
             int line = member.LineFrom;
@@ -477,27 +455,6 @@ namespace HXADCodeGeneratorPlugin
                     int end = start + mText.Length;
                     Sci.SetSel(start, end);
                     Sci.ReplaceSel(@"extern " + mText.TrimStart());
-                    return;
-                }
-                line++;
-            }
-        }
-
-        private static void MakeClassNotExtern(ScintillaNet.ScintillaControl Sci, MemberModel member)
-        {
-            int line = member.LineFrom;
-            while (line <= member.LineTo)
-            {
-                string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = Regex.Match(text, @"extern\s");
-                    if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel("");
                     return;
                 }
                 line++;
@@ -525,7 +482,7 @@ namespace HXADCodeGeneratorPlugin
             }
         }
 
-        private static void RemoveStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        private static void RemoveModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
         {
             int line = member.LineFrom;
             while (line <= member.LineTo)
@@ -533,34 +490,13 @@ namespace HXADCodeGeneratorPlugin
                 string text = Sci.GetLine(line);
                 if (!string.IsNullOrEmpty(text))
                 {
-                    Match m = Regex.Match(text, @"static\s");
+                    Match m = Regex.Match(text, modifier + @"\s");
                     if (!m.Success) continue;
                     string mText = m.Groups[0].Value;
                     int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
                     int end = start + mText.Length;
                     Sci.SetSel(start, end);
                     Sci.ReplaceSel("");
-                    return;
-                }
-                line++;
-            }
-        }
-
-        private static void AddInlineModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
-        {
-            int line = member.LineFrom;
-            while (line <= member.LineTo)
-            {
-                string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
-                    if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
-                    Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"inline " + mText.TrimStart());
                     return;
                 }
                 line++;
