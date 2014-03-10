@@ -27,6 +27,7 @@ namespace HXADCodeGeneratorPlugin
 
         private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([a-z ]+)(function|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
+        private static Regex reMember = new Regex("(class |var |function )", RegexOptions.Compiled);
         private const string methodPattern = "function\\s+[a-z_0-9.]+\\s*\\(";
         private const string classPattern = "class\\s+[a-z_0-9.]+\\s*";
         private const string varPattern = "var\\s+[a-z_0-9.]+\\s*";
@@ -163,7 +164,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMemberFinal(Sci, inClass, classPattern);
+                        MakeMemberFinal(Sci, inClass);
                     }
                     finally
                     {
@@ -174,7 +175,7 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMemberFinal(Sci, member, methodPattern);
+                        MakeMemberFinal(Sci, member);
                     }
                     finally
                     {
@@ -222,9 +223,9 @@ namespace HXADCodeGeneratorPlugin
                         if ((member.Flags & FlagType.Function) > 0)
                         {
                             RemoveModifier(Sci, member, "@:final\\s");
-                            AddStaticModifier(Sci, member, methodPattern);
+                            AddStaticModifier(Sci, member);
                         }
-                        else AddStaticModifier(Sci, member, varPattern);
+                        else AddStaticModifier(Sci, member);
                     }
                     finally
                     {
@@ -421,7 +422,7 @@ namespace HXADCodeGeneratorPlugin
             CompletionList.Show(known, false);
         }
 
-        private static void MakeMemberFinal(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
+        private static void MakeMemberFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
             int line = member.LineFrom;
             while(line <= member.LineTo)
@@ -429,7 +430,7 @@ namespace HXADCodeGeneratorPlugin
                 string text = Sci.GetLine(line);
                 if(!string.IsNullOrEmpty(text))
                 {
-                    Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
+                    Match m = reMember.Match(text);
                     if (m.Success)
                     {
                         m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
@@ -453,7 +454,7 @@ namespace HXADCodeGeneratorPlugin
                 string text = Sci.GetLine(line);
                 if (!string.IsNullOrEmpty(text))
                 {
-                    Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
+                    Match m = reMember.Match(text);
                     if (m.Success)
                     {
                         //m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
@@ -469,7 +470,7 @@ namespace HXADCodeGeneratorPlugin
             }
         }
 
-        private static void AddStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
+        private static void AddStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
             int line = member.LineFrom;
             while (line <= member.LineTo)
@@ -477,7 +478,7 @@ namespace HXADCodeGeneratorPlugin
                 string text = Sci.GetLine(line);
                 if (!string.IsNullOrEmpty(text))
                 {
-                    Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
+                    Match m = reMember.Match(text);
                     if (m.Success)
                     {
                         m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
