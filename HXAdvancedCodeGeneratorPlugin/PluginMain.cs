@@ -292,9 +292,10 @@ namespace HXADCodeGeneratorPlugin
             if (found.GetIsEmpty()) return false;
             MemberModel member = found.member;
             int pos = Sci.CurrentPos;
-            int line = Sci.LineFromPosition(pos);
+            var line = -1;
             if (member != null)
             {
+                line = member.LineFrom;
                 while (line <= member.LineTo)
                 {
                     string text = Sci.GetLine(line);
@@ -305,19 +306,18 @@ namespace HXADCodeGeneratorPlugin
                         string mText = string.Empty;
                         if (m1.Success) mText = m1.Groups[0].Value;
                         else if (m2.Success) mText = m2.Groups[0].Value;
-                        if (!string.IsNullOrEmpty(mText))
-                        {
-                            int start = Sci.PositionFromLine(line);
-                            int end = start + text.IndexOf(mText) + mText.Length;
-                            if (end > pos) return true;
-                            return false;
-                        }
+                        else continue;
+                        int start = Sci.PositionFromLine(line);
+                        int end = start + text.IndexOf(mText) + mText.Length;
+                        if (end > pos) return true;
+                        return false;
                     }
                     line++;
                 }
                 return false;
             }
             ClassModel aClass = found.inClass;
+            line = aClass.LineFrom;
             while (line <= aClass.LineTo)
             {
                 string text = Sci.GetLine(line);
