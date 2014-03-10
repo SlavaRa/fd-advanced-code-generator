@@ -324,14 +324,12 @@ namespace HXADCodeGeneratorPlugin
                 if (!string.IsNullOrEmpty(text))
                 {
                     Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
-                    if (m.Success)
-                    {
-                        string mText = m.Groups[0].Value;
-                        int start = Sci.PositionFromLine(line);
-                        int end = start + text.IndexOf(mText) + mText.Length;
-                        if (end > pos) return true;
-                        return false;
-                    }
+                    if (!m.Success) continue;
+                    string mText = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line);
+                    int end = start + text.IndexOf(mText) + mText.Length;
+                    if (end > pos) return true;
+                    return false;
                 }
                 line++;
             }
