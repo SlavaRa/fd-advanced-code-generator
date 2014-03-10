@@ -408,6 +408,11 @@ namespace HXADCodeGeneratorPlugin
                 string label = @"Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
             }
+            else
+            {
+                string label = @"Remove static modifier";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
+            }
             CompletionList.Show(known, false);
         }
 
