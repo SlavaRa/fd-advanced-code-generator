@@ -27,6 +27,7 @@ namespace HXADCodeGeneratorPlugin
 
         private const string methodPattern = @"function\s+[a-z_0-9.]+\s*\(";
         private const string classPattern = @"class\s+[a-z_0-9.]+\s*";
+        private const string varPattern = @"var\s+[a-z_0-9.]+\s*";
 
         #region Required Properties
 
@@ -216,8 +217,12 @@ namespace HXADCodeGeneratorPlugin
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMemberNotFinal(Sci, member);
-                        AddStaticModifier(Sci, member, methodPattern);
+                        if ((member.Flags & FlagType.Function) > 0)
+                        {
+                            MakeMemberNotFinal(Sci, member);
+                            AddStaticModifier(Sci, member, methodPattern);
+                        }
+                        else AddStaticModifier(Sci, member, varPattern);
                     }
                     finally
                     {
@@ -250,9 +255,15 @@ namespace HXADCodeGeneratorPlugin
                 ShowChangeClass(found);
                 return true;
             }
-            if ((found.member.Flags & FlagType.Constructor) == 0 && (found.member.Flags & FlagType.Function) > 0)
+            FlagType flags = found.member.Flags;
+            if ((flags & FlagType.Constructor) == 0 && (flags & FlagType.Function) > 0)
             {
                 ShowChangeMethod(found);
+                return true;
+            }
+            if ((flags & FlagType.LocalVar) == 0 && (flags & (FlagType.Variable | FlagType.Getter | FlagType.Setter)) > 0)
+            {
+                ShowChangeVariable(found);
                 return true;
             }
             return false;
@@ -289,10 +300,13 @@ namespace HXADCodeGeneratorPlugin
                     string text = Sci.GetLine(line);
                     if (!string.IsNullOrEmpty(text))
                     {
-                        Match m = Regex.Match(text, methodPattern, RegexOptions.IgnoreCase);
-                        if (m.Success)
+                        Match m1 = Regex.Match(text, methodPattern, RegexOptions.IgnoreCase);
+                        Match m2 = Regex.Match(text, varPattern, RegexOptions.IgnoreCase);
+                        string mText = string.Empty;
+                        if (m1.Success) mText = m1.Groups[0].Value;
+                        else if (m2.Success) mText = m2.Groups[0].Value;
+                        if (!string.IsNullOrEmpty(mText))
                         {
-                            string mText = m.Groups[0].Value;
                             int start = Sci.PositionFromLine(line);
                             int end = start + text.IndexOf(mText) + mText.Length;
                             if (end > pos) return true;
@@ -386,6 +400,17 @@ namespace HXADCodeGeneratorPlugin
             CompletionList.Show(known, false);
         }
 
+        private static void ShowChangeVariable(FoundDeclaration found)
+        {
+            List<ICompletionListItem> known = new List<ICompletionListItem>();
+            if ((found.member.Flags & FlagType.Static) == 0)
+            {
+                string label = @"Add static modifier";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
+            }
+            CompletionList.Show(known, false);
+        }
+
         private static void MakeMemberFinal(ScintillaNet.ScintillaControl Sci, MemberModel member, string memberPattern)
         {
             int line = member.LineFrom;
@@ -395,11 +420,12 @@ namespace HXADCodeGeneratorPlugin
                 Match m = Regex.Match(text, memberPattern, RegexOptions.IgnoreCase);
                 if(m.Success)
                 {
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line) + text.IndexOf(mText);
-                    int end = start + mText.Length;
+                    m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
+                    string mValue = m.Groups[0].Value;
+                    int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
+                    int end = start + mValue.Length;
                     Sci.SetSel(start, end);
-                    Sci.ReplaceSel(@"@:final " + mText.TrimStart());
+                    Sci.ReplaceSel(@"@:final " + mValue.TrimStart());
                     return;
                 }
                 line++;
