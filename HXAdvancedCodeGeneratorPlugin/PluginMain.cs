@@ -161,7 +161,7 @@ namespace HXCodeGenerator
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMemberFinal(Sci, inClass);
+                        AddModifier(Sci, inClass, "@:final ");
                     }
                     finally
                     {
@@ -172,7 +172,7 @@ namespace HXCodeGenerator
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeMemberFinal(Sci, member);
+                        AddModifier(Sci, member, "@:final ");
                     }
                     finally
                     {
@@ -195,7 +195,7 @@ namespace HXCodeGenerator
                     Sci.BeginUndoAction();
                     try
                     {
-                        MakeClassExtern(Sci, inClass);
+                        AddModifier(Sci, inClass, "extern ");
                     }
                     finally
                     {
@@ -217,12 +217,8 @@ namespace HXCodeGenerator
                     Sci.BeginUndoAction();
                     try
                     {
-                        if ((member.Flags & FlagType.Function) > 0)
-                        {
-                            RemoveModifier(Sci, member, "@:final\\s");
-                            AddStaticModifier(Sci, member);
-                        }
-                        else AddStaticModifier(Sci, member);
+                        if ((member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, "@:final\\s");
+                        AddModifier(Sci, member, "static ");
                     }
                     finally
                     {
@@ -391,24 +387,7 @@ namespace HXCodeGenerator
             CompletionList.Show(known, false);
         }
 
-        private static void MakeMemberFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
-        {
-            for (int line = member.LineFrom; line <= member.LineTo; line++)
-            {
-                string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text)) continue;
-                Match m = reMember.Match(text);
-                if (!m.Success) continue;
-                m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
-                Group decl = m.Groups[0];
-                int start = Sci.PositionFromLine(line) + decl.Index;
-                Sci.SetSel(start, start + decl.Length);
-                Sci.ReplaceSel(@"@:final " + decl.Value);
-                return;
-            }
-        }
-
-        private static void MakeClassExtern(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        private static void AddModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
         {
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
@@ -419,24 +398,7 @@ namespace HXCodeGenerator
                 Group decl = m.Groups[0];
                 int start = Sci.PositionFromLine(line) + decl.Index;
                 Sci.SetSel(start, start + decl.Length);
-                Sci.ReplaceSel("extern " + decl.Value);
-                return;
-            }
-        }
-
-        private static void AddStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member)
-        {
-            for(int line = member.LineFrom; line <= member.LineTo; line++)
-            {
-                string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text)) continue;
-                Match m = reMember.Match(text);
-                if (!m.Success) continue;
-                m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
-                Group decl = m.Groups[0];
-                int start = Sci.PositionFromLine(line) + decl.Index;
-                Sci.SetSel(start, start + decl.Length);
-                Sci.ReplaceSel("static " + decl.Value);
+                Sci.ReplaceSel(modifier + decl.Value);
                 if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, line);
                 return;
             }
