@@ -222,6 +222,7 @@ namespace HXCodeGenerator
                         if ((member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, "@:final\\s");
                         AddModifier(Sci, member, "static ");
                         if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
+                        FixInlineModifierLocation(Sci, member);
                     }
                     finally
                     {
@@ -244,6 +245,7 @@ namespace HXCodeGenerator
                     try
                     {
                         AddModifier(Sci, member, "inline ");
+                        FixInlineModifierLocation(Sci, member);
                     }
                     finally
                     {
@@ -344,22 +346,22 @@ namespace HXCodeGenerator
             bool isExtern = (flags & FlagType.Extern) > 0;
             if (!isFinal)
             {
-                string label = @"Make final";//TODO: localize it
+                string label = "Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, found.inClass));
             }
             if (!isExtern)
             {
-                string label = @"Make extern";//TODO: localize it
+                string label = "Make extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, found.inClass));
             }
             if (isFinal)
             {
-                string label = @"Make not final";//TODO: localize it
+                string label = "Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, found.inClass));
             }
             if (isExtern)
             {
-                string label = @"Make not extern";//TODO: localize it
+                string label = "Make not extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, found.inClass));
             }
             CompletionList.Show(known, false);
@@ -402,7 +404,6 @@ namespace HXCodeGenerator
                 string label = "Remove inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, found.member, null));
             }
-
             CompletionList.Show(known, false);
         }
 
@@ -413,12 +414,12 @@ namespace HXCodeGenerator
             bool isStatic = (flags & FlagType.Static) > 0;
             if (!isStatic)
             {
-                string label = @"Add static modifier";//TODO: localize it
+                string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
             }
             if (isStatic)
             {
-                string label = @"Remove static modifier";//TODO: localize it
+                string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
             }
             CompletionList.Show(known, false);
@@ -504,6 +505,23 @@ namespace HXCodeGenerator
                 Sci.SetSel(start, start + text.Length);
                 Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, decl.Value));
                 return;
+            }
+        }
+
+        private static void FixInlineModifierLocation(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
+            {
+                string text = Sci.GetLine(line);
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = Regex.Match(text.Trim(), "inline\\s");
+                if (!m.Success) continue;
+                int start = Sci.PositionFromLine(line);
+                Sci.SetSel(start, start + text.Length);
+                Group decl = m.Groups[0];
+                text = text.Remove(decl.Index, decl.Length);
+                decl = reMember.Match(text).Groups[0];
+                Sci.ReplaceSel(text.Insert(decl.Index, "inline "));
             }
         }
     }
