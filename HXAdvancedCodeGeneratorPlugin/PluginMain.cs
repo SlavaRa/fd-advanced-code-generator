@@ -228,6 +228,17 @@ namespace HXCodeGenerator
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.AddInlineModifier:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        AddModifier(Sci, member, "inline ");
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
                 case GeneratorJobType.RemoveStaticModifier:
                     Sci.BeginUndoAction();
                     try
@@ -349,6 +360,7 @@ namespace HXCodeGenerator
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             bool isStatic = (flags & FlagType.Static) > 0;
             bool isFinal = (flags & FlagType.Final) > 0;
+            bool isInline = GetHasModifier(ASContext.CurSciControl, found.member, "inline\\s");
             if (!isStatic && !isFinal)
             { 
                 string label = @"Make final";//TODO: localize it
@@ -358,6 +370,11 @@ namespace HXCodeGenerator
             {
                 string label = @"Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
+            }
+            if (!isInline)
+            {
+                string label = @"Add inline modifier";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.AddInlineModifier, found.member, null));
             }
             if (!isStatic && isFinal)
             {
@@ -369,6 +386,7 @@ namespace HXCodeGenerator
                 string label = @"Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
             }
+
             CompletionList.Show(known, false);
         }
 
@@ -388,6 +406,16 @@ namespace HXCodeGenerator
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
             }
             CompletionList.Show(known, false);
+        }
+
+        private static bool GetHasModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
+        {
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
+            {
+                string text = Sci.GetLine(line);
+                if (!string.IsNullOrEmpty(text) && Regex.IsMatch(text, modifier)) return true;
+            }
+            return false;
         }
 
         private static void AddModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
