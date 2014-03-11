@@ -290,60 +290,32 @@ namespace HXCodeGenerator
             return result;
         }
 
-        private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
-        {
-            if (found.GetIsEmpty()) return false;
-            MemberModel member = found.member;
-            int pos = Sci.CurrentPos;
-            var line = -1;
-            if (member != null)
-            {
-                line = member.LineFrom;
-                while (line <= member.LineTo)
-                {
-                    string text = Sci.GetLine(line);
-                    if (!string.IsNullOrEmpty(text))
-                    {
-                        Match m1 = Regex.Match(text, methodPattern, RegexOptions.IgnoreCase);
-                        Match m2 = Regex.Match(text, varPattern, RegexOptions.IgnoreCase);
-                        string mText = string.Empty;
-                        if (m1.Success) mText = m1.Groups[0].Value;
-                        else if (m2.Success) mText = m2.Groups[0].Value;
-                        else continue;
-                        int start = Sci.PositionFromLine(line);
-                        int end = start + text.IndexOf(mText) + mText.Length;
-                        if (end > pos) return true;
-                        return false;
-                    }
-                    line++;
-                }
-                return false;
-            }
-            ClassModel aClass = found.inClass;
-            line = aClass.LineFrom;
-            while (line <= aClass.LineTo)
-            {
-                string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = Regex.Match(text, classPattern, RegexOptions.IgnoreCase);
-                    if (!m.Success) continue;
-                    string mText = m.Groups[0].Value;
-                    int start = Sci.PositionFromLine(line);
-                    int end = start + text.IndexOf(mText) + mText.Length;
-                    if (end > pos) return true;
-                    return false;
-                }
-                line++;
-            }
-            return false;
-        }
-
         private static bool GetLangIsValid()
         {
             IProject project = PluginBase.CurrentProject;
             if (project == null) return false;
             return project.Language.StartsWith("haxe");
+        }
+        
+        private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
+        {
+            if (found.GetIsEmpty()) return false;
+            if (found.member != null) return GetCaretPositionIsValid(Sci, found.member);
+            return GetCaretPositionIsValid(Sci, found.inClass);
+        }
+
+        private static bool GetCaretPositionIsValid(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
+            {
+                string text = Sci.GetLine(line);
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                Group decl = m.Groups[0];
+                return (Sci.PositionFromLine(line) + decl.Index + decl.Length) > Sci.CurrentPos;
+            }
+            return false;
         }
 
         private static void ShowChangeClass(FoundDeclaration found)
@@ -424,95 +396,68 @@ namespace HXCodeGenerator
 
         private static void MakeMemberFinal(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
-            int line = member.LineFrom;
-            while(line <= member.LineTo)
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if(!string.IsNullOrEmpty(text))
-                {
-                    Match m = reMember.Match(text);
-                    if (m.Success)
-                    {
-                        m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
-                        string mValue = m.Groups[0].Value;
-                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                        int end = start + mValue.Length;
-                        Sci.SetSel(start, end);
-                        Sci.ReplaceSel(@"@:final " + mValue.TrimStart());
-                    }
-                    return;
-                }
-                line++;
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                m = Regex.Match(text, @"[a-z_0-9].", RegexOptions.IgnoreCase);
+                Group decl = m.Groups[0];
+                int start = Sci.PositionFromLine(line) + decl.Index;
+                Sci.SetSel(start, start + decl.Length);
+                Sci.ReplaceSel(@"@:final " + decl.Value);
+                return;
             }
         }
 
         private static void MakeClassExtern(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
-            int line = member.LineFrom;
-            while (line <= member.LineTo)
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = reMember.Match(text);
-                    if (m.Success)
-                    {
-                        //m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
-                        string mValue = m.Groups[0].Value;
-                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                        int end = start + mValue.Length;
-                        Sci.SetSel(start, end);
-                        Sci.ReplaceSel("extern " + mValue.TrimStart());
-                    }
-                    return;
-                }
-                line++;
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                Group decl = m.Groups[0];
+                int start = Sci.PositionFromLine(line) + decl.Index;
+                Sci.SetSel(start, start + decl.Length);
+                Sci.ReplaceSel("extern " + decl.Value);
+                return;
             }
         }
 
         private static void AddStaticModifier(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
-            int line = member.LineFrom;
-            while (line <= member.LineTo)
+            for(int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = reMember.Match(text);
-                    if (m.Success)
-                    {
-                        m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
-                        string mValue = m.Groups[0].Value;
-                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                        Sci.SetSel(start, start + mValue.Length);
-                        Sci.ReplaceSel("static " + mValue.TrimStart());
-                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, line);
-                        return;
-                    }
-                }
-                line++;
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                m = Regex.Match(text, "[a-z_0-9].", RegexOptions.IgnoreCase);
+                Group decl = m.Groups[0];
+                int start = Sci.PositionFromLine(line) + decl.Index;
+                Sci.SetSel(start, start + decl.Length);
+                Sci.ReplaceSel("static " + decl.Value);
+                if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, line);
+                return;
             }
         }
 
         private static void RemoveModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
         {
-            int line = member.LineFrom;
-            while (line <= member.LineTo)
+            for(int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if (!string.IsNullOrEmpty(text))
-                {
-                    Match m = Regex.Match(text, modifier);
-                    if (m.Success)
-                    {
-                        string mValue = m.Groups[0].Value;
-                        int start = Sci.PositionFromLine(line) + text.IndexOf(mValue);
-                        Sci.SetSel(start, start + mValue.Length);
-                        Sci.ReplaceSel("");
-                        return;
-                    }
-                }
-                line++;
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = Regex.Match(text, modifier);
+                if (!m.Success) continue;
+                Group decl = m.Groups[0];
+                int start = Sci.PositionFromLine(line) + decl.Index;
+                Sci.SetSel(start, start + decl.Length);
+                Sci.ReplaceSel("");
+                return;
             }
         }
 
@@ -520,17 +465,13 @@ namespace HXCodeGenerator
         {
             string text = Sci.GetLine(line);
             Match m = reModifiers.Match(text);
-            if (m.Success)
-            {
-                Group decl = m.Groups[2];
-                Match m2 = reModifier.Match(decl.Value);
-                if (m2.Success)
-                {
-                    int start = Sci.PositionFromLine(line);
-                    Sci.SetSel(start + decl.Index, start + decl.Length);
-                    Sci.ReplaceSel((m2.Value + decl.Value.Remove(m2.Index, m2.Length)).TrimEnd());
-                }
-            }
+            if (!m.Success) return;
+            Group decl = m.Groups[2];
+            Match m2 = reModifier.Match(decl.Value);
+            if (!m2.Success) return;
+            int start = Sci.PositionFromLine(line);
+            Sci.SetSel(start + decl.Index, start + decl.Length);
+            Sci.ReplaceSel((m2.Value + decl.Value.Remove(m2.Index, m2.Length)).TrimEnd());
         }
     }
 
