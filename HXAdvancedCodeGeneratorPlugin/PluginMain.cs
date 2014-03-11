@@ -228,6 +228,17 @@ namespace HXCodeGenerator
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.RemoveStaticModifier:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        RemoveModifier(Sci, member, "static\\s");
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
                 case GeneratorJobType.AddInlineModifier:
                     Sci.BeginUndoAction();
                     try
@@ -239,11 +250,11 @@ namespace HXCodeGenerator
                         Sci.EndUndoAction();
                     }
                     break;
-                case GeneratorJobType.RemoveStaticModifier:
+                case GeneratorJobType.RemoveInlineModifier:
                     Sci.BeginUndoAction();
                     try
                     {
-                        RemoveModifier(Sci, member, "static\\s");
+                        RemoveModifier(Sci, member, "inline\\s");
                     }
                     finally
                     {
@@ -363,28 +374,33 @@ namespace HXCodeGenerator
             bool isInline = GetHasModifier(ASContext.CurSciControl, found.member, "inline\\s");
             if (!isStatic && !isFinal)
             { 
-                string label = @"Make final";//TODO: localize it
+                string label = "Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, found.member, null));
             }
             if (!isStatic)
             {
-                string label = @"Add static modifier";//TODO: localize it
+                string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
             }
             if (!isInline)
             {
-                string label = @"Add inline modifier";//TODO: localize it
+                string label = "Add inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddInlineModifier, found.member, null));
             }
             if (!isStatic && isFinal)
             {
-                string label = @"Make not final";//TODO: localize it
+                string label = "Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, found.member, null));
             }
             if (isStatic)
             {
-                string label = @"Remove static modifier";//TODO: localize it
+                string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
+            }
+            if (isInline)
+            {
+                string label = "Remove inline modifier";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, found.member, null));
             }
 
             CompletionList.Show(known, false);
@@ -521,6 +537,7 @@ namespace HXCodeGenerator
         AddStaticModifier,
         RemoveStaticModifier,
         AddInlineModifier,
+        RemoveInlineModifier,
     }
 
     /// <summary>
