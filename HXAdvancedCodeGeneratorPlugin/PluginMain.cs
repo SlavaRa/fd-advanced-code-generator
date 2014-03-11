@@ -13,11 +13,11 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
 
-namespace HXADCodeGeneratorPlugin
+namespace HXCodeGenerator
 {
     public class PluginMain : IPlugin
     {
-        private string pluginName = "HXADCodeGeneratorPlugin";
+        private string pluginName = "HXCodeGenerator";
         private string pluginGuid = "92f41ee5-6d96-4f03-95a5-b46610fe5c2e";
         private string pluginHelp = "www.flashdevelop.org/community/";
         private string pluginDesc = "Haxe advanced code generator for the ASCompletion engine.";
@@ -120,7 +120,7 @@ namespace HXADCodeGeneratorPlugin
         /// </summary>
         public void InitBasics()
         {
-            string dataPath = Path.Combine(PathHelper.DataDir, "HXADCodeGenerator");
+            string dataPath = Path.Combine(PathHelper.DataDir, "HXCodeGenerator");
             if (!Directory.Exists(dataPath)) Directory.CreateDirectory(dataPath);
             this.settingFilename = Path.Combine(dataPath, "Settings.fdb");
             this.pluginDesc = TextHelper.GetString("Info.Description");
