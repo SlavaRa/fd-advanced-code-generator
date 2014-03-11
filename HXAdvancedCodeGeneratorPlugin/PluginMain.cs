@@ -162,6 +162,7 @@ namespace HXCodeGenerator
                     try
                     {
                         AddModifier(Sci, inClass, "@:final ");
+                        FixFinalModifierLocation(Sci, inClass);
                     }
                     finally
                     {
@@ -173,6 +174,7 @@ namespace HXCodeGenerator
                     try
                     {
                         AddModifier(Sci, member, "@:final ");
+                        FixFinalModifierLocation(Sci, member);
                     }
                     finally
                     {
@@ -219,6 +221,7 @@ namespace HXCodeGenerator
                     {
                         if ((member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, "@:final\\s");
                         AddModifier(Sci, member, "static ");
+                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
                     }
                     finally
                     {
@@ -399,7 +402,6 @@ namespace HXCodeGenerator
                 int start = Sci.PositionFromLine(line) + decl.Index;
                 Sci.SetSel(start, start + decl.Length);
                 Sci.ReplaceSel(modifier + decl.Value);
-                if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, line);
                 return;
             }
         }
@@ -420,17 +422,45 @@ namespace HXCodeGenerator
             }
         }
 
-        private static void FixModifiersLocation(ScintillaNet.ScintillaControl Sci, int line)
+        private static void FixModifiersLocation(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
-            string text = Sci.GetLine(line);
-            Match m = reModifiers.Match(text);
-            if (!m.Success) return;
-            Group decl = m.Groups[2];
-            Match m2 = reModifier.Match(decl.Value);
-            if (!m2.Success) return;
-            int start = Sci.PositionFromLine(line);
-            Sci.SetSel(start + decl.Index, start + decl.Length);
-            Sci.ReplaceSel((m2.Value + decl.Value.Remove(m2.Index, m2.Length)).TrimEnd());
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
+            {
+                string text = Sci.GetLine(line);
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                m = reModifiers.Match(text);
+                if (!m.Success) continue;
+                Group decl = m.Groups[2];
+                Match m2 = reModifier.Match(decl.Value);
+                if (!m2.Success) continue;
+                int start = Sci.PositionFromLine(line);
+                Sci.SetSel(start + decl.Index, start + decl.Length);
+                Sci.ReplaceSel((m2.Value + decl.Value.Remove(m2.Index, m2.Length)).TrimEnd());
+                return;
+            }
+        }
+
+        private static void FixFinalModifierLocation(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
+            {
+                string text = Sci.GetLine(line);
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                m = Regex.Match(text.Trim(), "@:final\\s");
+                if (!m.Success) continue;
+                Group decl = m.Groups[0];
+                if (decl.Index == 0) return;
+                m = Regex.Match(text, "[a-z ]", RegexOptions.IgnoreCase);
+                int insertStart = m.Success ? m.Groups[0].Index : 0;
+                int start = Sci.PositionFromLine(line);
+                Sci.SetSel(start, start + text.Length);
+                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, decl.Value));
+                return;
+            }
         }
     }
 
