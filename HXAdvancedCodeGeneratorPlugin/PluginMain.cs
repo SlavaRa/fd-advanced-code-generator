@@ -28,10 +28,7 @@ namespace HXCodeGenerator
         private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([a-z ]+)(function|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
         private static Regex reMember = new Regex("(class |var |function )", RegexOptions.Compiled);
-        private const string methodPattern = "function\\s+[a-z_0-9.]+\\s*\\(";
-        private const string classPattern = "class\\s+[a-z_0-9.]+\\s*";
-        private const string varPattern = "var\\s+[a-z_0-9.]+\\s*";
-
+        
         #region Required Properties
 
         /// <summary>
