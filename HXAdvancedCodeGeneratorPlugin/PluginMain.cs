@@ -158,23 +158,13 @@ namespace HXCodeGenerator
             switch (job)
             {
                 case GeneratorJobType.MakeClassFinal:
-                    Sci.BeginUndoAction();
-                    try
-                    {
-                        AddModifier(Sci, inClass, "@:final ");
-                        FixFinalModifierLocation(Sci, inClass);
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
                 case GeneratorJobType.MakeMethodFinal:
                     Sci.BeginUndoAction();
                     try
                     {
-                        AddModifier(Sci, member, "@:final ");
-                        FixFinalModifierLocation(Sci, member);
+                        MemberModel m = inClass ?? member;
+                        AddModifier(Sci, m, "@:final ");
+                        FixFinalModifierLocation(Sci, m);
                     }
                     finally
                     {
@@ -320,11 +310,11 @@ namespace HXCodeGenerator
         private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
         {
             if (found.GetIsEmpty()) return false;
-            if (found.member != null) return GetCaretPositionIsValid(Sci, found.member);
-            return GetCaretPositionIsValid(Sci, found.inClass);
+            if (found.member != null) return GetCurrentPosIsValid(Sci, found.member);
+            return GetCurrentPosIsValid(Sci, found.inClass);
         }
 
-        private static bool GetCaretPositionIsValid(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        private static bool GetCurrentPosIsValid(ScintillaNet.ScintillaControl Sci, MemberModel member)
         {
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
@@ -472,12 +462,10 @@ namespace HXCodeGenerator
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text)) continue;
-                Match m = reMember.Match(text);
-                if (!m.Success) continue;
-                m = reModifiers.Match(text);
-                if (!m.Success) continue;
-                Group decl = m.Groups[2];
+                if (string.IsNullOrEmpty(text) || !reMember.IsMatch(text)) continue;
+                Match m1 = reModifiers.Match(text);
+                if (!m1.Success) continue;
+                Group decl = m1.Groups[2];
                 Match m2 = reModifier.Match(decl.Value);
                 if (!m2.Success) continue;
                 int start = Sci.PositionFromLine(line);
@@ -492,10 +480,8 @@ namespace HXCodeGenerator
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text)) continue;
-                Match m = reMember.Match(text);
-                if (!m.Success) continue;
-                m = Regex.Match(text.Trim(), "@:final\\s");
+                if (string.IsNullOrEmpty(text) || !reMember.IsMatch(text)) continue;
+                Match m = Regex.Match(text.Trim(), "@:final\\s");
                 if (!m.Success) continue;
                 Group decl = m.Groups[0];
                 if (decl.Index == 0) return;
