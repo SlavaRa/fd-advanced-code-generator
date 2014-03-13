@@ -28,7 +28,6 @@ namespace HXCodeGenerator
         private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([a-z ]+)(function|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
         private static Regex reMember = new Regex("(class |var |function )", RegexOptions.Compiled);
-        private static string declPattern = "${Final} ${NoCompletion} ${Access} ${Inline}";
         
         #region Required Properties
 
@@ -613,6 +612,7 @@ namespace HXCodeGenerator
         RemoveInlineModifier,
         AddNoCompletionMeta,
         RemoveNoCompletionMeta,
+        ChangeAccess,
     }
 
     /// <summary>
