@@ -265,6 +265,17 @@ namespace HXCodeGenerator
                         Sci.EndUndoAction();
                     }
                     break;
+                case GeneratorJobType.RemoveNoCompletionMeta:
+                    Sci.BeginUndoAction();
+                    try
+                    {
+                        RemoveModifier(Sci, member, "@:noCompletion\\s");
+                    }
+                    finally
+                    {
+                        Sci.EndUndoAction();
+                    }
+                    break;
             }
         }
         
@@ -414,6 +425,11 @@ namespace HXCodeGenerator
                 string label = "Remove inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, member, null));
             }
+            if (isNoCompletion)
+            {
+                string label = "Remove @:noCompletion";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
+            }
             CompletionList.Show(known, false);
         }
 
@@ -439,6 +455,11 @@ namespace HXCodeGenerator
             {
                 string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
+            }
+            if (isNoCompletion)
+            {
+                string label = "Remove @:noCompletion";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
             }
             CompletionList.Show(known, false);
         }
@@ -591,6 +612,7 @@ namespace HXCodeGenerator
         AddInlineModifier,
         RemoveInlineModifier,
         AddNoCompletionMeta,
+        RemoveNoCompletionMeta,
     }
 
     /// <summary>
