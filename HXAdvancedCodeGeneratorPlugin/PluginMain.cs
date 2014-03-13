@@ -371,9 +371,9 @@ namespace HXCodeGenerator
 
         private static void ShowChangeMethod(FoundDeclaration found)
         {
+            List<ICompletionListItem> known = new List<ICompletionListItem>();
             MemberModel member = found.member;
             FlagType flags = member.Flags;
-            List<ICompletionListItem> known = new List<ICompletionListItem>();
             bool isStatic = (flags & FlagType.Static) > 0;
             bool isFinal = (flags & FlagType.Final) > 0;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
@@ -420,17 +420,25 @@ namespace HXCodeGenerator
         private static void ShowChangeVariable(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            FlagType flags = found.member.Flags;
+            MemberModel member = found.member;
+            FlagType flags = member.Flags;
+            ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             bool isStatic = (flags & FlagType.Static) > 0;
+            bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
             if (!isStatic)
             {
                 string label = "Add static modifier";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, found.member, null));
+                known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
+            }
+            if (!isNoCompletion)
+            {
+                string label = "Add @:noCompletion";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
             }
             if (isStatic)
             {
                 string label = "Remove static modifier";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, found.member, null));
+                known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
             }
             CompletionList.Show(known, false);
         }
