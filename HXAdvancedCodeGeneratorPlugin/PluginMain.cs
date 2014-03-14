@@ -25,7 +25,7 @@ namespace HXCodeGenerator
         private Settings settingObject;
         private string settingFilename;
 
-        private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([a-z ]+)(function|var)", RegexOptions.Compiled);
+        private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([\\w ]+)(function|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
         private static Regex reMember = new Regex("(class |var |function )", RegexOptions.Compiled);
         
@@ -486,7 +486,7 @@ namespace HXCodeGenerator
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
                 {
-                    m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
+                    m = Regex.Match(text, "[@:\\w ]", RegexOptions.IgnoreCase);
                     text = text.Insert(m.Index, access);
                 }
                 Sci.ReplaceSel(text);
@@ -552,7 +552,7 @@ namespace HXCodeGenerator
                 if (!m.Success) continue;
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
-                m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
+                m = Regex.Match(text, "[@:\\w ]", RegexOptions.IgnoreCase);
                 int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
@@ -588,7 +588,7 @@ namespace HXCodeGenerator
                 if (!m.Success) continue;
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
-                m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
+                m = Regex.Match(text, "[@:\\w ]", RegexOptions.IgnoreCase);
                 int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
