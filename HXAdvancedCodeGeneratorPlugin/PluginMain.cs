@@ -155,23 +155,25 @@ namespace HXCodeGenerator
         {
             if (!GetLangIsValid()) return;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
+            MemberModel tmpMember;
             Sci.BeginUndoAction();
             try
             {
                 switch (job)
                 {
                     case GeneratorJobType.ChangeAccess:
-                        ChangeAccess(Sci, member);
-                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
-                        FixInlineModifierLocation(Sci, member);
-                        FixFinalModifierLocation(Sci, member);
-                        FixNoCompletionMetaLocation(Sci, member);
+                        tmpMember = inClass ?? member;
+                        ChangeAccess(Sci, tmpMember);
+                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, tmpMember);
+                        FixInlineModifierLocation(Sci, tmpMember);
+                        FixFinalModifierLocation(Sci, tmpMember);
+                        FixNoCompletionMetaLocation(Sci, tmpMember);
                         break;
                     case GeneratorJobType.MakeClassFinal:
                     case GeneratorJobType.MakeMethodFinal:
-                        MemberModel m = inClass ?? member;
-                        AddModifier(Sci, m, "@:final ");
-                        FixFinalModifierLocation(Sci, m);
+                        tmpMember = inClass ?? member;
+                        AddModifier(Sci, tmpMember, "@:final ");
+                        FixFinalModifierLocation(Sci, tmpMember);
                         break;
                     case GeneratorJobType.MakeClassNotFinal:
                     case GeneratorJobType.MakeMethodNotFinal:
@@ -296,8 +298,19 @@ namespace HXCodeGenerator
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             ClassModel inClass = found.inClass;
             FlagType flags = found.inClass.Flags;
+            bool isPrivate = (inClass.Access & Visibility.Private) > 0;
             bool isFinal = (flags & FlagType.Final) > 0;
             bool isExtern = (flags & FlagType.Extern) > 0;
+            if (isPrivate)
+            {
+                string label = "Make public";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
+            }
+            else
+            {
+                string label = "Make private";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
+            }
             if (!isFinal)
             {
                 string label = "Make final";//TODO: localize it
@@ -466,7 +479,9 @@ namespace HXCodeGenerator
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                string access = (member.Access & Visibility.Private) > 0 ? "public " : "private ";
+                string access;
+                if((member.Access & Visibility.Private) > 0) access = (member.Flags & FlagType.Class) == 0 ? "public " : "";
+                else access = "private ";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
@@ -574,7 +589,7 @@ namespace HXCodeGenerator
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
                 m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
-                int insertStart = m.Success ? m.Groups[0].Index : 0;
+                int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, decl.Value));
