@@ -284,7 +284,9 @@ namespace HXCodeGenerator
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
                 Match m = reMember.Match(text);
-                if (m.Success) return (Sci.PositionFromLine(line) + m.Index + m.Length) > Sci.CurrentPos;
+                if (!m.Success) continue;
+                int curPos = Sci.CurrentPos;
+                return (Sci.PositionFromLine(line) + m.Index + m.Length) > curPos || Sci.LineEndPosition(line) == curPos;
             }
             return false;
         }
