@@ -28,7 +28,6 @@ namespace HXCodeGenerator
         private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([a-z ]+)(function|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
         private static Regex reMember = new Regex("(class |var |function )", RegexOptions.Compiled);
-        private static string declPattern = "${Final} ${NoCompletion} ${Access} ${Inline}";
         
         #region Required Properties
 
@@ -156,129 +155,65 @@ namespace HXCodeGenerator
         {
             if (!GetLangIsValid()) return;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
-            switch (job)
+            Sci.BeginUndoAction();
+            try
             {
-                case GeneratorJobType.MakeClassFinal:
-                case GeneratorJobType.MakeMethodFinal:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                switch (job)
+                {
+                    case GeneratorJobType.ChangeAccess:
+                        ChangeAccess(Sci, member);
+                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
+                        FixInlineModifierLocation(Sci, member);
+                        FixFinalModifierLocation(Sci, member);
+                        FixNoCompletionMetaLocation(Sci, member);
+                        break;
+                    case GeneratorJobType.MakeClassFinal:
+                    case GeneratorJobType.MakeMethodFinal:
                         MemberModel m = inClass ?? member;
                         AddModifier(Sci, m, "@:final ");
                         FixFinalModifierLocation(Sci, m);
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.MakeClassNotFinal:
-                case GeneratorJobType.MakeMethodNotFinal:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.MakeClassNotFinal:
+                    case GeneratorJobType.MakeMethodNotFinal:
                         RemoveModifier(Sci, inClass ?? member, "@:final\\s");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.MakeClassExtern:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.MakeClassExtern:
                         AddModifier(Sci, inClass, "extern ");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.MakeClassNotExtern:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.MakeClassNotExtern:
                         RemoveModifier(Sci, inClass, "extern\\s");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.AddStaticModifier:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.AddStaticModifier:
                         if ((member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, "@:final\\s");
                         AddModifier(Sci, member, "static ");
                         if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
                         FixInlineModifierLocation(Sci, member);
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.RemoveStaticModifier:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.RemoveStaticModifier:
                         RemoveModifier(Sci, member, "static\\s");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.AddInlineModifier:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.AddInlineModifier:
                         AddModifier(Sci, member, "inline ");
                         FixInlineModifierLocation(Sci, member);
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.RemoveInlineModifier:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.RemoveInlineModifier:
                         RemoveModifier(Sci, member, "inline\\s");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.AddNoCompletionMeta:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        break;
+                    case GeneratorJobType.AddNoCompletionMeta:
                         AddModifier(Sci, member, "@:noCompletion ");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
-                case GeneratorJobType.RemoveNoCompletionMeta:
-                    Sci.BeginUndoAction();
-                    try
-                    {
+                        FixNoCompletionMetaLocation(Sci, member);
+                        break;
+                    case GeneratorJobType.RemoveNoCompletionMeta:
                         RemoveModifier(Sci, member, "@:noCompletion\\s");
-                    }
-                    finally
-                    {
-                        Sci.EndUndoAction();
-                    }
-                    break;
+                        break;
+                }
+            }
+            finally
+            {
+                Sci.EndUndoAction();
             }
         }
-        
+
         private static bool ContextualGenerator(ScintillaNet.ScintillaControl Sci)
         {
             int position = Sci.CurrentPos;
@@ -292,7 +227,12 @@ namespace HXCodeGenerator
                 return true;
             }
             FlagType flags = found.member.Flags;
-            if ((flags & FlagType.Constructor) == 0 && (flags & FlagType.Function) > 0)
+            if ((flags & FlagType.Constructor) > 0)
+            {
+                ShowChangeConstructor(found);
+                return true;
+            }
+            if ((flags & FlagType.Function) > 0)
             {
                 ShowChangeMethod(found);
                 return true;
@@ -344,9 +284,7 @@ namespace HXCodeGenerator
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
                 Match m = reMember.Match(text);
-                if (!m.Success) continue;
-                Group decl = m.Groups[0];
-                return (Sci.PositionFromLine(line) + decl.Index + decl.Length) > Sci.CurrentPos;
+                if (m.Success) return (Sci.PositionFromLine(line) + m.Index + m.Length) > Sci.CurrentPos;
             }
             return false;
         }
@@ -354,28 +292,48 @@ namespace HXCodeGenerator
         private static void ShowChangeClass(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
+            ClassModel inClass = found.inClass;
             FlagType flags = found.inClass.Flags;
             bool isFinal = (flags & FlagType.Final) > 0;
             bool isExtern = (flags & FlagType.Extern) > 0;
             if (!isFinal)
             {
                 string label = "Make final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, inClass));
             }
             if (!isExtern)
             {
                 string label = "Make extern";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, inClass));
             }
             if (isFinal)
             {
                 string label = "Make not final";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, inClass));
             }
             if (isExtern)
             {
                 string label = "Make not extern";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, found.inClass));
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, inClass));
+            }
+            CompletionList.Show(known, false);
+        }
+
+        private static void ShowChangeConstructor(FoundDeclaration found)
+        {
+            List<ICompletionListItem> known = new List<ICompletionListItem>();
+            MemberModel member = found.member;
+            FlagType flags = member.Flags;
+            bool isPrivate = (member.Access & Visibility.Private) > 0;
+            if (isPrivate)
+            {
+                string label = "Make public";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+            }
+            else
+            {
+                string label = "Make private";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
             }
             CompletionList.Show(known, false);
         }
@@ -385,11 +343,22 @@ namespace HXCodeGenerator
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             MemberModel member = found.member;
             FlagType flags = member.Flags;
+            bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool isStatic = (flags & FlagType.Static) > 0;
             bool isFinal = (flags & FlagType.Final) > 0;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             bool isInline = GetHasModifier(Sci, member, "inline\\s");
             bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
+            if (isPrivate)
+            {
+                string label = "Make public";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+            }
+            else
+            {
+                string label = "Make private";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+            }
             if (!isStatic && !isFinal)
             { 
                 string label = "Make final";//TODO: localize it
@@ -439,8 +408,19 @@ namespace HXCodeGenerator
             MemberModel member = found.member;
             FlagType flags = member.Flags;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
+            bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool isStatic = (flags & FlagType.Static) > 0;
             bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
+            if (isPrivate)
+            {
+                string label = "Make public";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+            }
+            else
+            {
+                string label = "Make private";//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+            }
             if (!isStatic)
             {
                 string label = "Add static modifier";//TODO: localize it
@@ -472,6 +452,29 @@ namespace HXCodeGenerator
                 if (!string.IsNullOrEmpty(text) && Regex.IsMatch(text, modifier)) return true;
             }
             return false;
+        }
+
+        private static void ChangeAccess(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        {
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
+            {
+                string text = Sci.GetLine(line);
+                if (string.IsNullOrEmpty(text)) continue;
+                Match m = reMember.Match(text);
+                if (!m.Success) continue;
+                int start = Sci.PositionFromLine(line);
+                Sci.SetSel(start, start + text.Length);
+                string access = (member.Access & Visibility.Private) > 0 ? "public " : "private ";
+                m = reModifier.Match(text);
+                if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
+                else
+                {
+                    m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
+                    text = text.Insert(m.Index, access);
+                }
+                Sci.ReplaceSel(text);
+                return;
+            }
         }
 
         private static void AddModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
@@ -613,6 +616,7 @@ namespace HXCodeGenerator
         RemoveInlineModifier,
         AddNoCompletionMeta,
         RemoveNoCompletionMeta,
+        ChangeAccess,
     }
 
     /// <summary>
