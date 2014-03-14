@@ -485,10 +485,9 @@ namespace HXCodeGenerator
                 if (string.IsNullOrEmpty(text)) continue;
                 Match m = reMember.Match(text);
                 if (!m.Success) continue;
-                Group decl = m.Groups[0];
-                int start = Sci.PositionFromLine(line) + decl.Index;
-                Sci.SetSel(start, start + decl.Length);
-                Sci.ReplaceSel(modifier + decl.Value);
+                int start = Sci.PositionFromLine(line) + m.Index;
+                Sci.SetSel(start, start + m.Length);
+                Sci.ReplaceSel(modifier + m.Value);
                 return;
             }
         }
@@ -501,9 +500,8 @@ namespace HXCodeGenerator
                 if (string.IsNullOrEmpty(text)) continue;
                 Match m = Regex.Match(text, modifier);
                 if (!m.Success) continue;
-                Group decl = m.Groups[0];
-                int start = Sci.PositionFromLine(line) + decl.Index;
-                Sci.SetSel(start, start + decl.Length);
+                int start = Sci.PositionFromLine(line) + m.Index;
+                Sci.SetSel(start, start + m.Length);
                 Sci.ReplaceSel("");
                 return;
             }
@@ -535,10 +533,10 @@ namespace HXCodeGenerator
                 if (string.IsNullOrEmpty(text) || !reMember.IsMatch(text)) continue;
                 Match m = Regex.Match(text.Trim(), "@:final\\s");
                 if (!m.Success) continue;
+                if (m.Index == 0) return;
                 Group decl = m.Groups[0];
-                if (decl.Index == 0) return;
                 m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
-                int insertStart = m.Success ? m.Groups[0].Index : 0;
+                int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, decl.Value));
@@ -556,10 +554,9 @@ namespace HXCodeGenerator
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                Group decl = m.Groups[0];
-                text = text.Remove(decl.Index, decl.Length);
-                decl = reMember.Match(text).Groups[0];
-                Sci.ReplaceSel(text.Insert(decl.Index, "inline "));
+                text = text.Remove(m.Index, m.Length);
+                m = reMember.Match(text);
+                Sci.ReplaceSel(text.Insert(m.Index, "inline "));
                 return;
             }
         }
@@ -572,8 +569,8 @@ namespace HXCodeGenerator
                 if (string.IsNullOrEmpty(text)) continue;
                 Match m = Regex.Match(text.Trim(), "@:noCompletion\\s");
                 if (!m.Success) continue;
+                if (m.Index == 0) return;
                 Group decl = m.Groups[0];
-                if (decl.Index == 0) return;
                 m = Regex.Match(text, "[@:a-z ]", RegexOptions.IgnoreCase);
                 int insertStart = m.Success ? m.Groups[0].Index : 0;
                 int start = Sci.PositionFromLine(line);
