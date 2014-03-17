@@ -154,6 +154,11 @@ namespace HXCodeGenerator
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
             if (!GetLangIsValid()) return;
+            ContextFeatures features = ASContext.Context.Features;
+            string finalKey = GetFinalKey();
+            string staticKey = features.staticKey;
+            bool hasFinalKey = !string.IsNullOrEmpty(finalKey);
+            bool hasStatics = features.hasStatics;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             MemberModel tmpMember;
             Sci.BeginUndoAction();
@@ -171,38 +176,46 @@ namespace HXCodeGenerator
                         break;
                     case GeneratorJobType.MakeClassFinal:
                     case GeneratorJobType.MakeMethodFinal:
-                        tmpMember = inClass ?? member;
-                        AddModifier(Sci, tmpMember, "@:final ");
-                        FixFinalModifierLocation(Sci, tmpMember);
+                        if (hasFinalKey)
+                        {
+                            tmpMember = inClass ?? member;
+                            AddModifier(Sci, tmpMember, finalKey);
+                            FixFinalModifierLocation(Sci, tmpMember);
+                        }
                         break;
                     case GeneratorJobType.MakeClassNotFinal:
                     case GeneratorJobType.MakeMethodNotFinal:
-                        RemoveModifier(Sci, inClass ?? member, "@:final\\s");
+                        if (hasFinalKey) RemoveModifier(Sci, inClass ?? member, finalKey);
                         break;
                     case GeneratorJobType.MakeClassExtern:
-                        AddModifier(Sci, inClass, "extern ");
+                        AddModifier(Sci, inClass, features.intrinsicKey);
                         break;
                     case GeneratorJobType.MakeClassNotExtern:
-                        RemoveModifier(Sci, inClass, "extern\\s");
+                        RemoveModifier(Sci, inClass, features.intrinsicKey);
                         break;
                     case GeneratorJobType.AddStaticModifier:
-                        if ((member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, "@:final\\s");
-                        AddModifier(Sci, member, "static ");
-                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
-                        FixInlineModifierLocation(Sci, member);
+                        if (hasStatics)
+                        {
+                            if (hasFinalKey && (member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, finalKey);
+                            AddModifier(Sci, member, staticKey);
+                            if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
+                            FixInlineModifierLocation(Sci, member);
+                            FixFinalModifierLocation(Sci, member);
+                            FixNoCompletionMetaLocation(Sci, member);
+                        }
                         break;
                     case GeneratorJobType.RemoveStaticModifier:
-                        RemoveModifier(Sci, member, "static\\s");
+                        if (hasStatics) RemoveModifier(Sci, member, staticKey);
                         break;
                     case GeneratorJobType.AddInlineModifier:
-                        AddModifier(Sci, member, "inline ");
+                        AddModifier(Sci, member, "inline");
                         FixInlineModifierLocation(Sci, member);
                         break;
                     case GeneratorJobType.RemoveInlineModifier:
                         RemoveModifier(Sci, member, "inline\\s");
                         break;
                     case GeneratorJobType.AddNoCompletionMeta:
-                        AddModifier(Sci, member, "@:noCompletion ");
+                        AddModifier(Sci, member, "@:noCompletion");
                         FixNoCompletionMetaLocation(Sci, member);
                         break;
                     case GeneratorJobType.RemoveNoCompletionMeta:
@@ -271,7 +284,15 @@ namespace HXCodeGenerator
             if (project == null) return false;
             return project.Language.StartsWith("haxe");
         }
-        
+
+        private static string GetFinalKey()
+        {
+            IProject project = PluginBase.CurrentProject;
+            if (project == null) return string.Empty;
+            if (project.Language.StartsWith("haxe")) return "@:final";
+            return ASContext.Context.Features.finalKey;
+        }
+
         private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
         {
             if (found.GetIsEmpty()) return false;
@@ -504,7 +525,7 @@ namespace HXCodeGenerator
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line) + m.Index;
                 Sci.SetSel(start, start + m.Length);
-                Sci.ReplaceSel(modifier + m.Value);
+                Sci.ReplaceSel(modifier + " " + m.Value);
                 return;
             }
         }
@@ -515,7 +536,7 @@ namespace HXCodeGenerator
             {
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
-                Match m = Regex.Match(text, modifier);
+                Match m = Regex.Match(text, modifier + "\\s");
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line) + m.Index;
                 Sci.SetSel(start, start + m.Length);
