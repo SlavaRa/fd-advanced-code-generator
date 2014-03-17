@@ -159,6 +159,7 @@ namespace HXCodeGenerator
             string finalKey = GetFinalKey();
             string staticKey = features.staticKey;
             string inlineKey = GetInlineKey();
+            string noCompletionKey = GetNoCompletionKey();
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             Sci.BeginUndoAction();
             try
@@ -208,11 +209,11 @@ namespace HXCodeGenerator
                         RemoveModifier(Sci, member, inlineKey);
                         break;
                     case GeneratorJobType.AddNoCompletionMeta:
-                        AddModifier(Sci, member, "@:noCompletion");
+                        AddModifier(Sci, member, noCompletionKey);
                         FixNoCompletionMetaLocation(Sci, member);
                         break;
                     case GeneratorJobType.RemoveNoCompletionMeta:
-                        RemoveModifier(Sci, member, "@:noCompletion");
+                        RemoveModifier(Sci, member, noCompletionKey);
                         break;
                 }
             }
@@ -290,11 +291,16 @@ namespace HXCodeGenerator
             return string.Empty;
         }
 
+        private static string GetNoCompletionKey()
+        {
+            IProject project = PluginBase.CurrentProject;
+            if (project != null && project.Language.StartsWith("haxe")) return "@:noCompletion";
+            return string.Empty;
+        }
+
         private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
         {
-            if (found.GetIsEmpty()) return false;
-            if (found.member != null) return GetCurrentPosIsValid(Sci, found.member);
-            return GetCurrentPosIsValid(Sci, found.inClass);
+            return found.GetIsEmpty() ? false : GetCurrentPosIsValid(Sci, found.member ?? found.inClass);
         }
 
         private static bool GetCurrentPosIsValid(ScintillaNet.ScintillaControl Sci, MemberModel member)
@@ -386,7 +392,9 @@ namespace HXCodeGenerator
             string inlineKey = GetInlineKey();
             bool hasInline = !string.IsNullOrEmpty(inlineKey);
             bool isInline = hasInline ? GetHasModifier(Sci, member, inlineKey + "\\s") : false;
-            bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
+            string noCompletionKey = GetNoCompletionKey();
+            bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
+            bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
             if (isPrivate)
             {
                 string label = "Make public";//TODO: localize it
@@ -412,7 +420,7 @@ namespace HXCodeGenerator
                 string label = "Add inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddInlineModifier, member, null));
             }
-            if (!isNoCompletion)
+            if (hasNoCompletion && !isNoCompletion)
             {
                 string label = "Add @:noCompletion";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
@@ -432,7 +440,7 @@ namespace HXCodeGenerator
                 string label = "Remove inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, member, null));
             }
-            if (isNoCompletion)
+            if (hasNoCompletion && isNoCompletion)
             {
                 string label = "Remove @:noCompletion";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
@@ -449,7 +457,9 @@ namespace HXCodeGenerator
             bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool hasStatics = ASContext.Context.Features.hasStatics;
             bool isStatic = (flags & FlagType.Static) > 0;
-            bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
+            string noCompletionKey = GetNoCompletionKey();
+            bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
+            bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
             if (isPrivate)
             {
                 string label = "Make public";//TODO: localize it
@@ -465,7 +475,7 @@ namespace HXCodeGenerator
                 string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
             }
-            if (!isNoCompletion)
+            if (hasNoCompletion && !isNoCompletion)
             {
                 string label = "Add @:noCompletion";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
@@ -475,7 +485,7 @@ namespace HXCodeGenerator
                 string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
             }
-            if (isNoCompletion)
+            if (hasNoCompletion && isNoCompletion)
             {
                 string label = "Remove @:noCompletion";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
