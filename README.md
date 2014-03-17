@@ -14,7 +14,7 @@ Haxe<br/>
 ![](http://service.crazypanda.ru/v/clip2net/S/k/k0YyqWWO6A.png)<br/>
 ![](http://service.crazypanda.ru/v/clip2net/q/H/QEsbXIMXWu.png)<br/>
 3. Variables declaration:<br/>
-![](http://service.crazypanda.ru/v/clip2net/0/A/esajlB969Q.png)<br/>
+![](http://service.crazypanda.ru/v/clip2net/m/I/U5EyjO0SyY.png)<br/>
 4. Method declaration:<br/>
 ![](http://service.crazypanda.ru/v/clip2net/K/k/UMbwYaEw2x.png)<br/>
 ![](http://service.crazypanda.ru/v/clip2net/x/S/Ut857YGv8i.png)<br/>
