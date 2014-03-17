@@ -449,7 +449,7 @@ namespace AdvancedCodeGenerator
                 string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
             }
-            if (isInline && !isInline)
+            if (hasInline && !isInline)
             {
                 string label = "Add inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddInlineModifier, member, null));
@@ -469,7 +469,7 @@ namespace AdvancedCodeGenerator
                 string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
             }
-            if (isInline && isInline)
+            if (hasInline && isInline)
             {
                 string label = "Remove inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, member, null));
