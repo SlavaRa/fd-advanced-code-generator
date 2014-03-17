@@ -153,7 +153,6 @@ namespace HXCodeGenerator
         
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
-            if (!GetLangIsValid()) return;
             bool startWithModifiers = ASContext.CommonSettings.StartWithModifiers;
             ContextFeatures features = ASContext.Context.Features;
             string finalKey = GetFinalKey();
@@ -269,11 +268,10 @@ namespace HXCodeGenerator
             return result;
         }
 
-        private static bool GetLangIsValid()
+        private static bool GetLangIsHaxe()
         {
             IProject project = PluginBase.CurrentProject;
-            if (project == null) return false;
-            return project.Language.StartsWith("haxe");
+            return project != null && project.Language.StartsWith("haxe");
         }
 
         private static string GetFinalKey()
@@ -286,16 +284,12 @@ namespace HXCodeGenerator
 
         private static string GetInlineKey()
         {
-            IProject project = PluginBase.CurrentProject;
-            if (project != null && project.Language.StartsWith("haxe")) return "inline";
-            return string.Empty;
+            return GetLangIsHaxe() ? "inline" : string.Empty;
         }
 
         private static string GetNoCompletionKey()
         {
-            IProject project = PluginBase.CurrentProject;
-            if (project != null && project.Language.StartsWith("haxe")) return "@:noCompletion";
-            return string.Empty;
+            return GetLangIsHaxe() ? "@:noCompletion" : string.Empty;
         }
 
         private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
@@ -319,6 +313,7 @@ namespace HXCodeGenerator
 
         private static void ShowChangeClass(FoundDeclaration found)
         {
+            bool isHaxe = GetLangIsHaxe();
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             ClassModel inClass = found.inClass;
             FlagType flags = found.inClass.Flags;
@@ -326,22 +321,25 @@ namespace HXCodeGenerator
             bool hasFinal = !string.IsNullOrEmpty(GetFinalKey());
             bool isFinal = (flags & FlagType.Final) > 0;
             bool isExtern = (flags & FlagType.Extern) > 0;
-            if (isPrivate)
-            {
-                string label = "Make public";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
-            }
-            else
-            {
-                string label = "Make private";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
+            if(isHaxe)
+            { 
+                if (isPrivate)
+                {
+                    string label = "Make public";//TODO: localize it
+                    known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
+                }
+                else
+                {
+                    string label = "Make private";//TODO: localize it
+                    known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
+                }
             }
             if (hasFinal && !isFinal)
             {
                 string label = "Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, inClass));
             }
-            if (!isExtern)
+            if (isHaxe && !isExtern)
             {
                 string label = "Make extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, inClass));
@@ -351,7 +349,7 @@ namespace HXCodeGenerator
                 string label = "Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, inClass));
             }
-            if (isExtern)
+            if (isHaxe && isExtern)
             {
                 string label = "Make not extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, inClass));
@@ -361,6 +359,8 @@ namespace HXCodeGenerator
 
         private static void ShowChangeConstructor(FoundDeclaration found)
         {
+            IProject project = PluginBase.CurrentProject;
+            if (project == null || !project.Language.StartsWith("haxe")) return;
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             MemberModel member = found.member;
             FlagType flags = member.Flags;
