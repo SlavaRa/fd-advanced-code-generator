@@ -158,7 +158,7 @@ namespace HXCodeGenerator
             ContextFeatures features = ASContext.Context.Features;
             string finalKey = GetFinalKey();
             string staticKey = features.staticKey;
-            bool hasFinalKey = !string.IsNullOrEmpty(finalKey);
+            string inlineKey = GetInlineKey();
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             Sci.BeginUndoAction();
             try
@@ -190,7 +190,7 @@ namespace HXCodeGenerator
                         RemoveModifier(Sci, inClass, features.intrinsicKey);
                         break;
                     case GeneratorJobType.AddStaticModifier:
-                        if (hasFinalKey) RemoveModifier(Sci, member, finalKey);
+                        if (!string.IsNullOrEmpty(finalKey)) RemoveModifier(Sci, member, finalKey);
                         AddModifier(Sci, member, staticKey);
                         if (startWithModifiers) FixModifiersLocation(Sci, member);
                         FixInlineModifierLocation(Sci, member);
@@ -201,18 +201,18 @@ namespace HXCodeGenerator
                         RemoveModifier(Sci, member, staticKey);
                         break;
                     case GeneratorJobType.AddInlineModifier:
-                        AddModifier(Sci, member, "inline");
+                        AddModifier(Sci, member, inlineKey);
                         FixInlineModifierLocation(Sci, member);
                         break;
                     case GeneratorJobType.RemoveInlineModifier:
-                        RemoveModifier(Sci, member, "inline\\s");
+                        RemoveModifier(Sci, member, inlineKey);
                         break;
                     case GeneratorJobType.AddNoCompletionMeta:
                         AddModifier(Sci, member, "@:noCompletion");
                         FixNoCompletionMetaLocation(Sci, member);
                         break;
                     case GeneratorJobType.RemoveNoCompletionMeta:
-                        RemoveModifier(Sci, member, "@:noCompletion\\s");
+                        RemoveModifier(Sci, member, "@:noCompletion");
                         break;
                 }
             }
@@ -281,6 +281,13 @@ namespace HXCodeGenerator
             if (project == null) return string.Empty;
             if (project.Language.StartsWith("haxe")) return "@:final";
             return ASContext.Context.Features.finalKey;
+        }
+
+        private static string GetInlineKey()
+        {
+            IProject project = PluginBase.CurrentProject;
+            if (project != null && project.Language.StartsWith("haxe")) return "inline";
+            return string.Empty;
         }
 
         private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
@@ -376,7 +383,9 @@ namespace HXCodeGenerator
             bool hasFinal = !string.IsNullOrEmpty(GetFinalKey());
             bool isFinal = (flags & FlagType.Final) > 0;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
-            bool isInline = GetHasModifier(Sci, member, "inline\\s");
+            string inlineKey = GetInlineKey();
+            bool hasInline = !string.IsNullOrEmpty(inlineKey);
+            bool isInline = hasInline ? GetHasModifier(Sci, member, inlineKey + "\\s") : false;
             bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
             if (isPrivate)
             {
@@ -398,7 +407,7 @@ namespace HXCodeGenerator
                 string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
             }
-            if (!isInline)
+            if (isInline && !isInline)
             {
                 string label = "Add inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddInlineModifier, member, null));
@@ -418,7 +427,7 @@ namespace HXCodeGenerator
                 string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
             }
-            if (isInline)
+            if (isInline && isInline)
             {
                 string label = "Remove inline modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, member, null));
