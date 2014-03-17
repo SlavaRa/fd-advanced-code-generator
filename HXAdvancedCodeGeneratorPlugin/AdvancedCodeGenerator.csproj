@@ -7,8 +7,8 @@
     <ProjectGuid>{988B28AD-1796-43A1-9F2D-C09316D357DF}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>HXCodeGenerator</RootNamespace>
-    <AssemblyName>HXCodeGenerator</AssemblyName>
+    <RootNamespace>AdvancedCodeGenerator</RootNamespace>
+    <AssemblyName>AdvancedCodeGenerator</AssemblyName>
     <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
