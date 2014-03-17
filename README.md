@@ -1,4 +1,4 @@
-Haxe code generator
+Advanced code generator
 =============================
 
-Дев проект расширения функционала плагина ASCompletion, а именно генераторов кода для Haxe платформы.
+TODO: make wiki.
