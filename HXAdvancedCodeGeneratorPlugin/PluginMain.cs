@@ -28,6 +28,8 @@ namespace AdvancedCodeGenerator
         private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([\\w ]+)(function|const|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |protected |private |internal )", RegexOptions.Compiled);
         private static Regex reMember = new Regex("(class |const |var |function )", RegexOptions.Compiled);
+        private static Dictionary<Visibility, string> vis2string = new Dictionary<Visibility, string>();
+        private static Dictionary<Visibility, GeneratorJobType> vis2job = new Dictionary<Visibility, GeneratorJobType>();
         
         #region Required Properties
 
@@ -77,6 +79,8 @@ namespace AdvancedCodeGenerator
         public void Initialize()
         {
             InitBasics();
+            InitVis2String();
+            InitVis2Job();
             LoadSettings();
             AddEventHandlers();
         }
@@ -150,7 +154,23 @@ namespace AdvancedCodeGenerator
         }
 
         #endregion
-        
+
+        private static void InitVis2String()
+        {
+            vis2string.Add(Visibility.Internal, "internal");
+            vis2string.Add(Visibility.Private, "private");
+            vis2string.Add(Visibility.Protected, "protected");
+            vis2string.Add(Visibility.Public, "public");
+        }
+
+        private static void InitVis2Job()
+        {
+            vis2job.Add(Visibility.Internal, GeneratorJobType.MakeInternal);
+            vis2job.Add(Visibility.Private, GeneratorJobType.MakePrivate);
+            vis2job.Add(Visibility.Protected, GeneratorJobType.MakeProtected);
+            vis2job.Add(Visibility.Public, GeneratorJobType.MakePublic);
+        }
+
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
             bool startWithModifiers = ASContext.CommonSettings.StartWithModifiers;
@@ -166,15 +186,25 @@ namespace AdvancedCodeGenerator
             {
                 switch (job)
                 {
-                    case GeneratorJobType.ChangeAccess:
-                        member = inClass ?? member;
-                        ChangeAccess(Sci, member);
-                        FixFinalModifierLocation(Sci, member);
-                        if (startWithModifiers) FixModifiersLocation(Sci, member);
-                        if (isHaxe)
+                    case GeneratorJobType.MakeInternal:
+                    case GeneratorJobType.MakePrivate:
+                    case GeneratorJobType.MakeProtected:
+                    case GeneratorJobType.MakePublic:
+                        foreach(Visibility vis in vis2job.Keys)
                         {
-                            FixInlineModifierLocation(Sci, member);
-                            FixNoCompletionMetaLocation(Sci, member);
+                            if(vis2job[vis] == job)
+                            {
+                                member = inClass ?? member;
+                                ChangeAccess(Sci, member, vis);
+                                FixFinalModifierLocation(Sci, member);
+                                if (startWithModifiers) FixModifiersLocation(Sci, member);
+                                if (isHaxe)
+                                {
+                                    FixInlineModifierLocation(Sci, member);
+                                    FixNoCompletionMetaLocation(Sci, member);
+                                }
+                                break;
+                            }
                         }
                         break;
                     case GeneratorJobType.MakeClassFinal:
@@ -320,25 +350,25 @@ namespace AdvancedCodeGenerator
 
         private static void ShowChangeClass(FoundDeclaration found)
         {
-            bool isHaxe = GetLangIsHaxe();
             List<ICompletionListItem> known = new List<ICompletionListItem>();
+            Visibility classModifiers = ASContext.Context.Features.classModifiers;
+            bool isHaxe = GetLangIsHaxe();
             ClassModel inClass = found.inClass;
-            FlagType flags = found.inClass.Flags;
+            FlagType flags = inClass.Flags;
+            Visibility access = inClass.Access;
             bool isPrivate = (inClass.Access & Visibility.Private) > 0;
             bool hasFinal = !string.IsNullOrEmpty(GetFinalKey());
             bool isFinal = (flags & FlagType.Final) > 0;
             bool isExtern = (flags & FlagType.Extern) > 0;
             if(isHaxe)
-            { 
-                if (isPrivate)
+            {
+                foreach (Visibility vis in vis2string.Keys)
                 {
-                    string label = "Make public";//TODO: localize it
-                    known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
-                }
-                else
-                {
-                    string label = "Make private";//TODO: localize it
-                    known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
+                    if ((access & vis) == 0 && (classModifiers & vis) > 0)
+                    {
+                        string label = "Make " + vis2string[vis];//TODO: localize it
+                        known.Add(new GeneratorItem(label, vis2job[vis], null, inClass));
+                    }
                 }
             }
             if (hasFinal && !isFinal)
@@ -366,21 +396,18 @@ namespace AdvancedCodeGenerator
 
         private static void ShowChangeConstructor(FoundDeclaration found)
         {
-            IProject project = PluginBase.CurrentProject;
-            if (project == null || !project.Language.StartsWith("haxe")) return;
+            if (!GetLangIsHaxe()) return;
             List<ICompletionListItem> known = new List<ICompletionListItem>();
+            Visibility classModifiers = ASContext.Context.Features.classModifiers;
             MemberModel member = found.member;
-            FlagType flags = member.Flags;
-            bool isPrivate = (member.Access & Visibility.Private) > 0;
-            if (isPrivate)
+            Visibility access = member.Access;
+            foreach (Visibility vis in vis2string.Keys)
             {
-                string label = "Make public";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
-            }
-            else
-            {
-                string label = "Make private";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+                if ((access & vis) == 0 && (classModifiers & vis) > 0)
+                {
+                    string label = "Make " + vis2string[vis];//TODO: localize it
+                    known.Add(new GeneratorItem(label, vis2job[vis], member, null));
+                }
             }
             CompletionList.Show(known, false);
         }
@@ -388,8 +415,10 @@ namespace AdvancedCodeGenerator
         private static void ShowChangeMethod(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
+            Visibility methodModifiers = ASContext.Context.Features.methodModifiers;
             MemberModel member = found.member;
             FlagType flags = member.Flags;
+            Visibility access = member.Access;
             bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool hasStatics = ASContext.Context.Features.hasStatics;
             bool isStatic = (flags & FlagType.Static) > 0;
@@ -402,15 +431,13 @@ namespace AdvancedCodeGenerator
             string noCompletionKey = GetNoCompletionKey();
             bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
             bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
-            if (isPrivate)
+            foreach (Visibility vis in vis2string.Keys)
             {
-                string label = "Make public";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
-            }
-            else
-            {
-                string label = "Make private";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+                if ((access & vis) == 0 && (methodModifiers & vis) > 0)
+                {
+                    string label = "Make " + vis2string[vis];//TODO: localize it
+                    known.Add(new GeneratorItem(label, vis2job[vis], member, null));
+                }
             }
             if (hasFinal && !isStatic && !isFinal)
             { 
@@ -458,8 +485,10 @@ namespace AdvancedCodeGenerator
         private static void ShowChangeVariable(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
+            Visibility varModifiers = ASContext.Context.Features.varModifiers;
             MemberModel member = found.member;
             FlagType flags = member.Flags;
+            Visibility access = member.Access;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool hasStatics = ASContext.Context.Features.hasStatics;
@@ -467,15 +496,13 @@ namespace AdvancedCodeGenerator
             string noCompletionKey = GetNoCompletionKey();
             bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
             bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
-            if (isPrivate)
+            foreach (Visibility vis in vis2string.Keys)
             {
-                string label = "Make public";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
-            }
-            else
-            {
-                string label = "Make private";//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
+                if ((access & vis) == 0 && (varModifiers & vis) > 0)
+                {
+                    string label = "Make " + vis2string[vis];//TODO: localize it
+                    known.Add(new GeneratorItem(label, vis2job[vis], member, null));
+                }
             }
             if (hasStatics && !isStatic)
             {
@@ -510,7 +537,7 @@ namespace AdvancedCodeGenerator
             return false;
         }
 
-        private static void ChangeAccess(ScintillaNet.ScintillaControl Sci, MemberModel member)
+        private static void ChangeAccess(ScintillaNet.ScintillaControl Sci, MemberModel member, Visibility vis)
         {
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
@@ -520,9 +547,8 @@ namespace AdvancedCodeGenerator
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                string access = ASContext.Context.Features.privateKey + " ";
-                if((member.Access & Visibility.Private) > 0)
-                    access = (member.Flags & FlagType.Class) == 0 ? ASContext.Context.Features.publicKey + " " : "";
+                string access = vis2string[vis] + " ";
+                if (GetLangIsHaxe() && (member.Flags & FlagType.Class) == 0 && (vis & Visibility.Private) > 0) access = "";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
@@ -674,7 +700,10 @@ namespace AdvancedCodeGenerator
         RemoveInlineModifier,
         AddNoCompletionMeta,
         RemoveNoCompletionMeta,
-        ChangeAccess,
+        MakeInternal,
+        MakePrivate,
+        MakeProtected,
+        MakePublic,
     }
 
     /// <summary>
