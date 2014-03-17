@@ -25,9 +25,9 @@ namespace HXCodeGenerator
         private Settings settingObject;
         private string settingFilename;
 
-        private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([\\w ]+)(function|var)", RegexOptions.Compiled);
-        private static Regex reModifier = new Regex("(public |private )", RegexOptions.Compiled);
-        private static Regex reMember = new Regex("(class |var |function )", RegexOptions.Compiled);
+        private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([\\w ]+)(function|const|var)", RegexOptions.Compiled);
+        private static Regex reModifier = new Regex("(public |protected |private |internal )", RegexOptions.Compiled);
+        private static Regex reMember = new Regex("(class |const |var |function )", RegexOptions.Compiled);
         
         #region Required Properties
 
@@ -154,6 +154,7 @@ namespace HXCodeGenerator
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
             bool startWithModifiers = ASContext.CommonSettings.StartWithModifiers;
+            bool isHaxe = GetLangIsHaxe();
             ContextFeatures features = ASContext.Context.Features;
             string finalKey = GetFinalKey();
             string staticKey = features.staticKey;
@@ -168,10 +169,13 @@ namespace HXCodeGenerator
                     case GeneratorJobType.ChangeAccess:
                         member = inClass ?? member;
                         ChangeAccess(Sci, member);
-                        if (startWithModifiers) FixModifiersLocation(Sci, member);
-                        FixInlineModifierLocation(Sci, member);
                         FixFinalModifierLocation(Sci, member);
-                        FixNoCompletionMetaLocation(Sci, member);
+                        if (startWithModifiers) FixModifiersLocation(Sci, member);
+                        if (isHaxe)
+                        {
+                            FixInlineModifierLocation(Sci, member);
+                            FixNoCompletionMetaLocation(Sci, member);
+                        }
                         break;
                     case GeneratorJobType.MakeClassFinal:
                     case GeneratorJobType.MakeMethodFinal:
@@ -192,10 +196,13 @@ namespace HXCodeGenerator
                     case GeneratorJobType.AddStaticModifier:
                         if (!string.IsNullOrEmpty(finalKey)) RemoveModifier(Sci, member, finalKey);
                         AddModifier(Sci, member, staticKey);
-                        if (startWithModifiers) FixModifiersLocation(Sci, member);
-                        FixInlineModifierLocation(Sci, member);
                         FixFinalModifierLocation(Sci, member);
-                        FixNoCompletionMetaLocation(Sci, member);
+                        if (startWithModifiers) FixModifiersLocation(Sci, member);
+                        if (isHaxe)
+                        {
+                            FixInlineModifierLocation(Sci, member);
+                            FixNoCompletionMetaLocation(Sci, member);
+                        }
                         break;
                     case GeneratorJobType.RemoveStaticModifier:
                         RemoveModifier(Sci, member, staticKey);
@@ -513,9 +520,9 @@ namespace HXCodeGenerator
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                string access;
-                if((member.Access & Visibility.Private) > 0) access = (member.Flags & FlagType.Class) == 0 ? "public " : "";
-                else access = "private ";
+                string access = ASContext.Context.Features.privateKey + " ";
+                if((member.Access & Visibility.Private) > 0)
+                    access = (member.Flags & FlagType.Class) == 0 ? ASContext.Context.Features.publicKey + " " : "";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
@@ -569,9 +576,9 @@ namespace HXCodeGenerator
                 Group decl = m1.Groups[2];
                 Match m2 = reModifier.Match(decl.Value);
                 if (!m2.Success) continue;
-                int start = Sci.PositionFromLine(line);
-                Sci.SetSel(start + decl.Index, start + decl.Length);
-                Sci.ReplaceSel((m2.Value + decl.Value.Remove(m2.Index, m2.Length)).TrimEnd());
+                int start = Sci.PositionFromLine(line) + decl.Index;
+                Sci.SetSel(start, start + decl.Length);
+                Sci.ReplaceSel(m2.Value + decl.Value.Remove(m2.Index, m2.Length));
                 return;
             }
         }
@@ -582,7 +589,8 @@ namespace HXCodeGenerator
             {
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text) || !reMember.IsMatch(text)) continue;
-                Match m = Regex.Match(text.Trim(), "@:final\\s");
+                string finalKey = GetFinalKey();
+                Match m = Regex.Match(text, finalKey + "\\s");
                 if (!m.Success) continue;
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
@@ -590,7 +598,7 @@ namespace HXCodeGenerator
                 int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, decl.Value));
+                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, finalKey + " "));
                 return;
             }
         }
@@ -601,13 +609,14 @@ namespace HXCodeGenerator
             {
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
-                Match m = Regex.Match(text.Trim(), "inline\\s");
+                string inlineKey = GetInlineKey();
+                Match m = Regex.Match(text, inlineKey + "\\s");
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 text = text.Remove(m.Index, m.Length);
                 m = reMember.Match(text);
-                Sci.ReplaceSel(text.Insert(m.Index, "inline "));
+                Sci.ReplaceSel(text.Insert(m.Index, inlineKey + " "));
                 return;
             }
         }
@@ -618,7 +627,8 @@ namespace HXCodeGenerator
             {
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
-                Match m = Regex.Match(text.Trim(), "@:noCompletion\\s");
+                string noCompletionKey = GetNoCompletionKey();
+                Match m = Regex.Match(text, noCompletionKey + "\\s");
                 if (!m.Success) continue;
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
@@ -626,7 +636,7 @@ namespace HXCodeGenerator
                 int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, decl.Value));
+                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, noCompletionKey + " "));
                 return;
             }
         }
