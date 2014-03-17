@@ -154,38 +154,34 @@ namespace HXCodeGenerator
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
             if (!GetLangIsValid()) return;
+            bool startWithModifiers = ASContext.CommonSettings.StartWithModifiers;
             ContextFeatures features = ASContext.Context.Features;
             string finalKey = GetFinalKey();
             string staticKey = features.staticKey;
             bool hasFinalKey = !string.IsNullOrEmpty(finalKey);
-            bool hasStatics = features.hasStatics;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
-            MemberModel tmpMember;
             Sci.BeginUndoAction();
             try
             {
                 switch (job)
                 {
                     case GeneratorJobType.ChangeAccess:
-                        tmpMember = inClass ?? member;
-                        ChangeAccess(Sci, tmpMember);
-                        if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, tmpMember);
-                        FixInlineModifierLocation(Sci, tmpMember);
-                        FixFinalModifierLocation(Sci, tmpMember);
-                        FixNoCompletionMetaLocation(Sci, tmpMember);
+                        member = inClass ?? member;
+                        ChangeAccess(Sci, member);
+                        if (startWithModifiers) FixModifiersLocation(Sci, member);
+                        FixInlineModifierLocation(Sci, member);
+                        FixFinalModifierLocation(Sci, member);
+                        FixNoCompletionMetaLocation(Sci, member);
                         break;
                     case GeneratorJobType.MakeClassFinal:
                     case GeneratorJobType.MakeMethodFinal:
-                        if (hasFinalKey)
-                        {
-                            tmpMember = inClass ?? member;
-                            AddModifier(Sci, tmpMember, finalKey);
-                            FixFinalModifierLocation(Sci, tmpMember);
-                        }
+                        member = inClass ?? member;
+                        AddModifier(Sci, member, finalKey);
+                        FixFinalModifierLocation(Sci, member);
                         break;
                     case GeneratorJobType.MakeClassNotFinal:
                     case GeneratorJobType.MakeMethodNotFinal:
-                        if (hasFinalKey) RemoveModifier(Sci, inClass ?? member, finalKey);
+                        RemoveModifier(Sci, inClass ?? member, finalKey);
                         break;
                     case GeneratorJobType.MakeClassExtern:
                         AddModifier(Sci, inClass, features.intrinsicKey);
@@ -194,18 +190,15 @@ namespace HXCodeGenerator
                         RemoveModifier(Sci, inClass, features.intrinsicKey);
                         break;
                     case GeneratorJobType.AddStaticModifier:
-                        if (hasStatics)
-                        {
-                            if (hasFinalKey && (member.Flags & FlagType.Function) > 0) RemoveModifier(Sci, member, finalKey);
-                            AddModifier(Sci, member, staticKey);
-                            if (ASContext.CommonSettings.StartWithModifiers) FixModifiersLocation(Sci, member);
-                            FixInlineModifierLocation(Sci, member);
-                            FixFinalModifierLocation(Sci, member);
-                            FixNoCompletionMetaLocation(Sci, member);
-                        }
+                        if (hasFinalKey) RemoveModifier(Sci, member, finalKey);
+                        AddModifier(Sci, member, staticKey);
+                        if (startWithModifiers) FixModifiersLocation(Sci, member);
+                        FixInlineModifierLocation(Sci, member);
+                        FixFinalModifierLocation(Sci, member);
+                        FixNoCompletionMetaLocation(Sci, member);
                         break;
                     case GeneratorJobType.RemoveStaticModifier:
-                        if (hasStatics) RemoveModifier(Sci, member, staticKey);
+                        RemoveModifier(Sci, member, staticKey);
                         break;
                     case GeneratorJobType.AddInlineModifier:
                         AddModifier(Sci, member, "inline");
@@ -231,10 +224,7 @@ namespace HXCodeGenerator
 
         private static bool ContextualGenerator(ScintillaNet.ScintillaControl Sci)
         {
-            int position = Sci.CurrentPos;
-            int line = Sci.LineFromPosition(position);
-            string text = Sci.GetLine(line);
-            FoundDeclaration found = GetDeclarationAtLine(Sci, line);
+            FoundDeclaration found = GetDeclarationAtLine(Sci, Sci.LineFromPosition(Sci.CurrentPos));
             if (!GetDeclarationIsValid(Sci, found)) return false;
             if (found.member == null && found.inClass != ClassModel.VoidClass)
             {
@@ -320,6 +310,7 @@ namespace HXCodeGenerator
             ClassModel inClass = found.inClass;
             FlagType flags = found.inClass.Flags;
             bool isPrivate = (inClass.Access & Visibility.Private) > 0;
+            bool hasFinal = !string.IsNullOrEmpty(GetFinalKey());
             bool isFinal = (flags & FlagType.Final) > 0;
             bool isExtern = (flags & FlagType.Extern) > 0;
             if (isPrivate)
@@ -332,7 +323,7 @@ namespace HXCodeGenerator
                 string label = "Make private";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, null, inClass));
             }
-            if (!isFinal)
+            if (hasFinal && !isFinal)
             {
                 string label = "Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, inClass));
@@ -342,7 +333,7 @@ namespace HXCodeGenerator
                 string label = "Make extern";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, inClass));
             }
-            if (isFinal)
+            if (hasFinal && isFinal)
             {
                 string label = "Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, inClass));
@@ -380,7 +371,9 @@ namespace HXCodeGenerator
             MemberModel member = found.member;
             FlagType flags = member.Flags;
             bool isPrivate = (member.Access & Visibility.Private) > 0;
+            bool hasStatics = ASContext.Context.Features.hasStatics;
             bool isStatic = (flags & FlagType.Static) > 0;
+            bool hasFinal = !string.IsNullOrEmpty(GetFinalKey());
             bool isFinal = (flags & FlagType.Final) > 0;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             bool isInline = GetHasModifier(Sci, member, "inline\\s");
@@ -395,12 +388,12 @@ namespace HXCodeGenerator
                 string label = "Make private";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
             }
-            if (!isStatic && !isFinal)
+            if (hasFinal && !isStatic && !isFinal)
             { 
                 string label = "Make final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, member, null));
             }
-            if (!isStatic)
+            if (hasStatics && !isStatic)
             {
                 string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
@@ -415,12 +408,12 @@ namespace HXCodeGenerator
                 string label = "Add @:noCompletion";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
             }
-            if (!isStatic && isFinal)
+            if (hasFinal && !isStatic && isFinal)
             {
                 string label = "Make not final";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, member, null));
             }
-            if (isStatic)
+            if (hasStatics && isStatic)
             {
                 string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
@@ -445,6 +438,7 @@ namespace HXCodeGenerator
             FlagType flags = member.Flags;
             ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
             bool isPrivate = (member.Access & Visibility.Private) > 0;
+            bool hasStatics = ASContext.Context.Features.hasStatics;
             bool isStatic = (flags & FlagType.Static) > 0;
             bool isNoCompletion = GetHasModifier(Sci, member, "@:noCompletion\\s");
             if (isPrivate)
@@ -457,7 +451,7 @@ namespace HXCodeGenerator
                 string label = "Make private";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.ChangeAccess, member, null));
             }
-            if (!isStatic)
+            if (hasStatics && !isStatic)
             {
                 string label = "Add static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
@@ -467,7 +461,7 @@ namespace HXCodeGenerator
                 string label = "Add @:noCompletion";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
             }
-            if (isStatic)
+            if (hasStatics && isStatic)
             {
                 string label = "Remove static modifier";//TODO: localize it
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
