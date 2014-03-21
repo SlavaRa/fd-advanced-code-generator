@@ -17,20 +17,20 @@ namespace AdvancedCodeGenerator
 {
     public class PluginMain : IPlugin
     {
-        private string pluginName = "AdvancedCodeGenerator";
-        private string pluginGuid = "92f41ee5-6d96-4f03-95a5-b46610fe5c2e";
-        private string pluginHelp = "www.flashdevelop.org/community/";
-        private string pluginDesc = "Haxe advanced code generator for the ASCompletion engine.";
-        private string pluginAuth = "FlashDevelop Team";
-        private Settings settingObject;
-        private string settingFilename;
-
         private static Regex reModifiers = new Regex("^\\s*(\\$\\(Boundary\\))?([\\w ]+)(function|const|var)", RegexOptions.Compiled);
         private static Regex reModifier = new Regex("(public |protected |private |internal )", RegexOptions.Compiled);
         private static Regex reMember = new Regex("(class |const |var |function )", RegexOptions.Compiled);
         private static Dictionary<Visibility, string> vis2string = new Dictionary<Visibility, string>();
         private static Dictionary<Visibility, GeneratorJobType> vis2job = new Dictionary<Visibility, GeneratorJobType>();
-        
+        private static Settings settingObject;
+
+        private string pluginName = "AdvancedCodeGenerator";
+        private string pluginGuid = "92f41ee5-6d96-4f03-95a5-b46610fe5c2e";
+        private string pluginHelp = "www.flashdevelop.org/community/";
+        private string pluginDesc = "Haxe advanced code generator for the ASCompletion engine.";
+        private string pluginAuth = "FlashDevelop Team";
+        private string settingFilename;
+
         #region Required Properties
 
         /// <summary>
@@ -548,7 +548,9 @@ namespace AdvancedCodeGenerator
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 string access = vis2string[vis] + " ";
-                if (GetLangIsHaxe() && (member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0) access = "";
+                if (GetLangIsHaxe()
+                    &&((member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0)
+                    || ((vis & Visibility.Private) > 0 && !settingObject.UsePrivateExplicitly)) access = "";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
