@@ -548,7 +548,7 @@ namespace AdvancedCodeGenerator
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 string access = vis2string[vis] + " ";
-                if (GetLangIsHaxe() && (member.Flags & FlagType.Class) == 0 && (vis & Visibility.Private) > 0) access = "";
+                if (GetLangIsHaxe() && (member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0) access = "";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
