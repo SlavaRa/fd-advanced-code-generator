@@ -343,7 +343,10 @@ namespace AdvancedCodeGenerator
                 Match m = reMember.Match(text);
                 if (!m.Success) continue;
                 int curPos = Sci.CurrentPos;
-                return (Sci.PositionFromLine(line) + m.Index + m.Length) > curPos || Sci.LineEndPosition(line) == curPos;
+                int start = Sci.PositionFromLine(line);
+                //TODO: remove comments
+                //TODO: get real length
+                return (start + m.Index + m.Length) > curPos || (start + text.TrimEnd().Length) == curPos;
             }
             return false;
         }
@@ -548,9 +551,7 @@ namespace AdvancedCodeGenerator
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 string access = vis2string[vis] + " ";
-                if (GetLangIsHaxe()
-                    &&((member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0)
-                    || ((vis & Visibility.Private) > 0 && !settingObject.UsePrivateExplicitly)) access = "";
+                if (GetLangIsHaxe() && (((member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0) || ((vis & Visibility.Private) > 0 && !settingObject.UsePrivateExplicitly))) access = "";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
@@ -616,9 +617,9 @@ namespace AdvancedCodeGenerator
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text) || !reMember.IsMatch(text)) continue;
-                string finalKey = GetFinalKey();
-                Match m = Regex.Match(text, finalKey + "\\s");
+                if (string.IsNullOrEmpty(text)) continue;
+                string key = GetFinalKey();
+                Match m = Regex.Match(text, key + "\\s");
                 if (!m.Success) continue;
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
@@ -626,7 +627,7 @@ namespace AdvancedCodeGenerator
                 int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, finalKey + " "));
+                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, key + " "));
                 return;
             }
         }
@@ -637,14 +638,14 @@ namespace AdvancedCodeGenerator
             {
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
-                string inlineKey = GetInlineKey();
-                Match m = Regex.Match(text, inlineKey + "\\s");
+                string key = GetInlineKey();
+                Match m = Regex.Match(text, key + "\\s");
                 if (!m.Success) continue;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 text = text.Remove(m.Index, m.Length);
                 m = reMember.Match(text);
-                Sci.ReplaceSel(text.Insert(m.Index, inlineKey + " "));
+                Sci.ReplaceSel(text.Insert(m.Index, key + " "));
                 return;
             }
         }
@@ -655,8 +656,8 @@ namespace AdvancedCodeGenerator
             {
                 string text = Sci.GetLine(line);
                 if (string.IsNullOrEmpty(text)) continue;
-                string noCompletionKey = GetNoCompletionKey();
-                Match m = Regex.Match(text, noCompletionKey + "\\s");
+                string key = GetNoCompletionKey();
+                Match m = Regex.Match(text, key + "\\s");
                 if (!m.Success) continue;
                 if (m.Index == 0) return;
                 Group decl = m.Groups[0];
@@ -664,7 +665,7 @@ namespace AdvancedCodeGenerator
                 int insertStart = m.Success ? m.Index : 0;
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
-                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, noCompletionKey + " "));
+                Sci.ReplaceSel(text.Remove(decl.Index, decl.Length).Insert(insertStart, key + " "));
                 return;
             }
         }
