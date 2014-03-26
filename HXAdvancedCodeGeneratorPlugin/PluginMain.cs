@@ -591,12 +591,8 @@ namespace AdvancedCodeGenerator
         {
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
-                string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text)) continue;
-                Match m = reMember.Match(text);
+                Match m = Select(line, reMember, Sci);
                 if (!m.Success) continue;
-                int start = Sci.PositionFromLine(line) + m.Index;
-                Sci.SetSel(start, start + m.Length);
                 Sci.ReplaceSel(modifier + " " + m.Value);
                 return;
             }
@@ -606,15 +602,21 @@ namespace AdvancedCodeGenerator
         {
             for(int line = member.LineFrom; line <= member.LineTo; line++)
             {
-                string text = Sci.GetLine(line);
-                if (string.IsNullOrEmpty(text)) continue;
-                Match m = Regex.Match(text, modifier + "\\s");
-                if (!m.Success) continue;
-                int start = Sci.PositionFromLine(line) + m.Index;
-                Sci.SetSel(start, start + m.Length);
+                if (Select(line, new Regex(modifier + "\\s"), Sci) == null) continue;
                 Sci.ReplaceSel("");
                 return;
             }
+        }
+
+        private static Match Select(int line, Regex re, ScintillaNet.ScintillaControl Sci)
+        {
+            string text = Sci.GetLine(line);
+            if (string.IsNullOrEmpty(text)) return null;
+            Match m = re.Match(text);
+            if (!m.Success) return null;
+            int start = Sci.PositionFromLine(line) + m.Index;
+            Sci.SetSel(start, start + m.Length);
+            return m;
         }
 
         private static void FixModifiersLocation(ScintillaNet.ScintillaControl Sci, MemberModel member)
