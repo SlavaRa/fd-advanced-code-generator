@@ -425,11 +425,8 @@ namespace AdvancedCodeGenerator
         private static void ShowChangeMethod(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            Visibility methodModifiers = ASContext.Context.Features.methodModifiers;
             MemberModel member = found.member;
             FlagType flags = member.Flags;
-            Visibility access = member.Access;
-            bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool hasStatics = ASContext.Context.Features.hasStatics;
             bool isStatic = (flags & FlagType.Static) > 0;
             bool hasFinal = !string.IsNullOrEmpty(GetFinalKey());
@@ -441,40 +438,7 @@ namespace AdvancedCodeGenerator
             string noCompletionKey = GetNoCompletionKey();
             bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
             bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
-            string[] customAccess = null;
-            Dictionary<Visibility, string> vis2stringHelper = new Dictionary<Visibility,string>();
-            bool isAS = GetProjIsAS();
-            if (isAS)
-            {
-                vis2stringHelper = new Dictionary<Visibility,string>();
-                customAccess = new string[] { };
-                foreach (Visibility vis in vis2string.Keys)
-                    if (Array.IndexOf(settings.ASAccessModifiers, vis2string[vis]) != -1)
-                        vis2stringHelper.Add(vis, vis2string[vis]);
-
-                foreach (string value in settings.ASAccessModifiers)
-                    if (!vis2stringHelper.ContainsValue(value)) customAccess.SetValue(value, customAccess.Length);
-            }
-            else vis2stringHelper = vis2string;
-            foreach (Visibility vis in vis2stringHelper.Keys)
-            {
-                if ((access & vis) == 0 && (methodModifiers & vis) > 0)
-                {
-                    string label = "Make " + vis2stringHelper[vis];//TODO: localize it
-                    if(isAS)
-                    {
-                        string text = vis2stringHelper[vis];
-                        known.Add(new GeneratorItem(label, vis2job[vis], member, null, null, Array.IndexOf(settings.ASOrderOfAccessModifiers, text)));
-                    }
-                    else known.Add(new GeneratorItem(label, vis2job[vis], member, null));
-                }
-            }
-            foreach(string value in customAccess)
-            {
-                string label = "Make " + value;//TODO: localize it
-                known.Add(new GeneratorItem(label, GeneratorJobType.MakeCustom, member, null, value, Array.IndexOf(settings.ASOrderOfAccessModifiers, value)));
-            }
-            known.Sort(delegate(ICompletionListItem i1, ICompletionListItem i2) { return (i1 as GeneratorItem).index - (i2 as GeneratorItem).index; });
+            AddChangeMemberModifierItems(known, member, ASContext.Context.Features.methodModifiers);
             if (hasFinal && !isStatic && !isFinal)
             { 
                 string label = "Make final";//TODO: localize it
@@ -521,25 +485,13 @@ namespace AdvancedCodeGenerator
         private static void ShowChangeVariable(FoundDeclaration found)
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
-            Visibility varModifiers = ASContext.Context.Features.varModifiers;
             MemberModel member = found.member;
-            FlagType flags = member.Flags;
-            Visibility access = member.Access;
-            ScintillaNet.ScintillaControl Sci = ASContext.CurSciControl;
-            bool isPrivate = (member.Access & Visibility.Private) > 0;
             bool hasStatics = ASContext.Context.Features.hasStatics;
-            bool isStatic = (flags & FlagType.Static) > 0;
+            bool isStatic = (member.Flags & FlagType.Static) > 0;
             string noCompletionKey = GetNoCompletionKey();
             bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
-            bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
-            foreach (Visibility vis in vis2string.Keys)
-            {
-                if ((access & vis) == 0 && (varModifiers & vis) > 0)
-                {
-                    string label = "Make " + vis2string[vis];//TODO: localize it
-                    known.Add(new GeneratorItem(label, vis2job[vis], member, null));
-                }
-            }
+            bool isNoCompletion = hasNoCompletion ? GetHasModifier(ASContext.CurSciControl, member, noCompletionKey + "\\s") : false;
+            AddChangeMemberModifierItems(known, member, ASContext.Context.Features.varModifiers);
             if (hasStatics && !isStatic)
             {
                 string label = "Add static modifier";//TODO: localize it
@@ -561,6 +513,44 @@ namespace AdvancedCodeGenerator
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
             }
             CompletionList.Show(known, false);
+        }
+
+        private static void AddChangeMemberModifierItems(List<ICompletionListItem> known, MemberModel member, Visibility featuresModifiers)
+        {
+            string[] customAccess = null;
+            Dictionary<Visibility, string> vis2stringHelper = new Dictionary<Visibility, string>();
+            bool isAS = GetProjIsAS();
+            if (isAS)
+            {
+                vis2stringHelper = new Dictionary<Visibility, string>();
+                customAccess = new string[] { };
+                foreach (Visibility vis in vis2string.Keys)
+                    if (Array.IndexOf(settings.ASAccessModifiers, vis2string[vis]) != -1)
+                        vis2stringHelper.Add(vis, vis2string[vis]);
+
+                foreach (string value in settings.ASAccessModifiers)
+                    if (!vis2stringHelper.ContainsValue(value)) customAccess.SetValue(value, customAccess.Length);
+            }
+            else vis2stringHelper = vis2string;
+            foreach (Visibility vis in vis2stringHelper.Keys)
+            {
+                if ((member.Access & vis) == 0 && (featuresModifiers & vis) > 0)
+                {
+                    string label = "Make " + vis2stringHelper[vis];//TODO: localize it
+                    if (isAS)
+                    {
+                        string text = vis2stringHelper[vis];
+                        known.Add(new GeneratorItem(label, vis2job[vis], member, null, null, Array.IndexOf(settings.ASOrderOfAccessModifiers, text)));
+                    }
+                    else known.Add(new GeneratorItem(label, vis2job[vis], member, null));
+                }
+            }
+            foreach (string value in customAccess)
+            {
+                string label = "Make " + value;//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeCustom, member, null, value, Array.IndexOf(settings.ASOrderOfAccessModifiers, value)));
+            }
+            known.Sort(delegate(ICompletionListItem i1, ICompletionListItem i2) { return (i1 as GeneratorItem).index - (i2 as GeneratorItem).index; });
         }
 
         private static bool GetHasModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
