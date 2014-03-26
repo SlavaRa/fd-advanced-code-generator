@@ -8,6 +8,7 @@ using PluginCore.Helpers;
 using PluginCore.Localization;
 using PluginCore.Managers;
 using PluginCore.Utilities;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -22,7 +23,7 @@ namespace AdvancedCodeGenerator
         private static Regex reMember = new Regex("(class |const |var |function )", RegexOptions.Compiled);
         private static Dictionary<Visibility, string> vis2string = new Dictionary<Visibility, string>();
         private static Dictionary<Visibility, GeneratorJobType> vis2job = new Dictionary<Visibility, GeneratorJobType>();
-        private static Settings settingObject;
+        private static Settings settings;
 
         private string pluginName = "AdvancedCodeGenerator";
         private string pluginGuid = "92f41ee5-6d96-4f03-95a5-b46610fe5c2e";
@@ -67,7 +68,7 @@ namespace AdvancedCodeGenerator
         /// Object that contains the settings
         /// </summary>
         [Browsable(false)]
-        public object Settings { get { return settingObject; } }
+        public object Settings { get { return settings; } }
 
         #endregion
 
@@ -140,9 +141,9 @@ namespace AdvancedCodeGenerator
         /// </summary>
         public void LoadSettings()
         {
-            settingObject = new Settings();
+            settings = new Settings();
             if (!File.Exists(settingFilename)) SaveSettings();
-            else settingObject = (Settings)ObjectSerializer.Deserialize(settingFilename, settingObject);
+            else settings = (Settings)ObjectSerializer.Deserialize(settingFilename, settings);
         }
 
         /// <summary>
@@ -150,7 +151,7 @@ namespace AdvancedCodeGenerator
         /// </summary>
         private void SaveSettings()
         {
-            ObjectSerializer.Serialize(settingFilename, settingObject);
+            ObjectSerializer.Serialize(settingFilename, settings);
         }
 
         #endregion
@@ -174,7 +175,7 @@ namespace AdvancedCodeGenerator
         public static void GenerateJob(GeneratorJobType job, MemberModel member, ClassModel inClass, string itemLabel, object data)
         {
             bool startWithModifiers = ASContext.CommonSettings.StartWithModifiers;
-            bool isHaxe = GetLangIsHaxe();
+            bool isHaxe = GetProjIsHaxe();
             ContextFeatures features = ASContext.Context.Features;
             string finalKey = GetFinalKey();
             string staticKey = features.staticKey;
@@ -305,7 +306,13 @@ namespace AdvancedCodeGenerator
             return result;
         }
 
-        private static bool GetLangIsHaxe()
+        private static bool GetProjIsAS()
+        {
+            IProject project = PluginBase.CurrentProject;
+            return project != null && project.Language.StartsWith("as");
+        }
+
+        private static bool GetProjIsHaxe()
         {
             IProject project = PluginBase.CurrentProject;
             return project != null && project.Language.StartsWith("haxe");
@@ -321,12 +328,12 @@ namespace AdvancedCodeGenerator
 
         private static string GetInlineKey()
         {
-            return GetLangIsHaxe() ? "inline" : string.Empty;
+            return GetProjIsHaxe() ? "inline" : string.Empty;
         }
 
         private static string GetNoCompletionKey()
         {
-            return GetLangIsHaxe() ? "@:noCompletion" : string.Empty;
+            return GetProjIsHaxe() ? "@:noCompletion" : string.Empty;
         }
 
         private static bool GetDeclarationIsValid(ScintillaNet.ScintillaControl Sci, FoundDeclaration found)
@@ -355,7 +362,7 @@ namespace AdvancedCodeGenerator
         {
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             Visibility classModifiers = ASContext.Context.Features.classModifiers;
-            bool isHaxe = GetLangIsHaxe();
+            bool isHaxe = GetProjIsHaxe();
             ClassModel inClass = found.inClass;
             FlagType flags = inClass.Flags;
             Visibility access = inClass.Access;
@@ -399,7 +406,7 @@ namespace AdvancedCodeGenerator
 
         private static void ShowChangeConstructor(FoundDeclaration found)
         {
-            if (!GetLangIsHaxe()) return;
+            if (!GetProjIsHaxe()) return;
             List<ICompletionListItem> known = new List<ICompletionListItem>();
             Visibility classModifiers = ASContext.Context.Features.classModifiers;
             MemberModel member = found.member;
@@ -434,14 +441,40 @@ namespace AdvancedCodeGenerator
             string noCompletionKey = GetNoCompletionKey();
             bool hasNoCompletion = !string.IsNullOrEmpty(noCompletionKey);
             bool isNoCompletion = hasNoCompletion ? GetHasModifier(Sci, member, noCompletionKey + "\\s") : false;
-            foreach (Visibility vis in vis2string.Keys)
+            string[] customAccess = null;
+            Dictionary<Visibility, string> vis2stringHelper = new Dictionary<Visibility,string>();
+            bool isAS = GetProjIsAS();
+            if (isAS)
+            {
+                vis2stringHelper = new Dictionary<Visibility,string>();
+                customAccess = new string[] { };
+                foreach (Visibility vis in vis2string.Keys)
+                    if (Array.IndexOf(settings.ASAccessModifiers, vis2string[vis]) != -1)
+                        vis2stringHelper.Add(vis, vis2string[vis]);
+
+                foreach (string value in settings.ASAccessModifiers)
+                    if (!vis2stringHelper.ContainsValue(value)) customAccess.SetValue(value, customAccess.Length);
+            }
+            else vis2stringHelper = vis2string;
+            foreach (Visibility vis in vis2stringHelper.Keys)
             {
                 if ((access & vis) == 0 && (methodModifiers & vis) > 0)
                 {
-                    string label = "Make " + vis2string[vis];//TODO: localize it
-                    known.Add(new GeneratorItem(label, vis2job[vis], member, null));
+                    string label = "Make " + vis2stringHelper[vis];//TODO: localize it
+                    if(isAS)
+                    {
+                        string text = vis2stringHelper[vis];
+                        known.Add(new GeneratorItem(label, vis2job[vis], member, null, null, Array.IndexOf(settings.ASOrderOfAccessModifiers, text)));
+                    }
+                    else known.Add(new GeneratorItem(label, vis2job[vis], member, null));
                 }
             }
+            foreach(string value in customAccess)
+            {
+                string label = "Make " + value;//TODO: localize it
+                known.Add(new GeneratorItem(label, GeneratorJobType.MakeCustom, member, null, value, Array.IndexOf(settings.ASOrderOfAccessModifiers, value)));
+            }
+            known.Sort(delegate(ICompletionListItem i1, ICompletionListItem i2) { return (i1 as GeneratorItem).index - (i2 as GeneratorItem).index; });
             if (hasFinal && !isStatic && !isFinal)
             { 
                 string label = "Make final";//TODO: localize it
@@ -551,7 +584,7 @@ namespace AdvancedCodeGenerator
                 int start = Sci.PositionFromLine(line);
                 Sci.SetSel(start, start + text.Length);
                 string access = vis2string[vis] + " ";
-                if (GetLangIsHaxe() && (((member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0) || ((vis & Visibility.Private) > 0 && !settingObject.UsePrivateExplicitly))) access = "";
+                if (GetProjIsHaxe() && (((member.Flags & FlagType.Class) > 0 && (vis & Visibility.Public) > 0) || ((vis & Visibility.Private) > 0 && !settings.UsePrivateExplicitly))) access = "";
                 m = reModifier.Match(text);
                 if (m.Success) text = text.Remove(m.Index, m.Length).Insert(m.Index, access);
                 else
@@ -707,6 +740,7 @@ namespace AdvancedCodeGenerator
         MakePrivate,
         MakeProtected,
         MakePublic,
+        MakeCustom,
     }
 
     /// <summary>
@@ -719,6 +753,7 @@ namespace AdvancedCodeGenerator
         private MemberModel member;
         private ClassModel inClass;
         private object data;
+        public int index = 0;
 
         public GeneratorItem(string label, GeneratorJobType job, MemberModel member, ClassModel inClass)
         {
@@ -733,6 +768,13 @@ namespace AdvancedCodeGenerator
         {
 
             this.data = data;
+        }
+
+        public GeneratorItem(string label, GeneratorJobType job, MemberModel member, ClassModel inClass, object data, int index)
+            : this(label, job, member, inClass, data)
+        {
+
+            this.index = index;
         }
 
         public string Label
