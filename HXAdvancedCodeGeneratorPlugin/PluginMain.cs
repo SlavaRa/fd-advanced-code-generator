@@ -280,7 +280,7 @@ namespace AdvancedCodeGenerator
                 ShowChangeMethod(found);
                 return true;
             }
-            if ((flags & FlagType.LocalVar) == 0 && (flags & (FlagType.Variable | FlagType.Getter | FlagType.Setter)) > 0)
+            if ((flags & FlagType.LocalVar) == 0 && (flags & (FlagType.Variable | FlagType.Constant | FlagType.Getter | FlagType.Setter)) > 0)
             {
                 ShowChangeVariable(found);
                 return true;
@@ -351,9 +351,10 @@ namespace AdvancedCodeGenerator
                 if (!m.Success) continue;
                 int curPos = Sci.CurrentPos;
                 int start = Sci.PositionFromLine(line);
-                //TODO: remove comments
-                //TODO: get real length
-                return (start + m.Index + m.Length) > curPos || (start + text.TrimEnd().Length) == curPos;
+                if ((start + m.Index + m.Length) > curPos) return true;
+                text = Regex.Replace(text, "//.*$", "");
+                text = Regex.Replace(text, "/\\*.*\\*/", "");
+                return (start + text.TrimEnd().Length) <= curPos;
             }
             return false;
         }
