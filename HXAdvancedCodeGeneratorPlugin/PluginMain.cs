@@ -28,7 +28,7 @@ namespace AdvancedCodeGenerator
         private string pluginName = "AdvancedCodeGenerator";
         private string pluginGuid = "92f41ee5-6d96-4f03-95a5-b46610fe5c2e";
         private string pluginHelp = "www.flashdevelop.org/community/";
-        private string pluginDesc = "Haxe advanced code generator for the ASCompletion engine.";
+        private string pluginDesc = "Advanced code generator for the ASCompletion engine.";
         private string pluginAuth = "FlashDevelop Team";
         private string settingFilename;
 
@@ -376,29 +376,29 @@ namespace AdvancedCodeGenerator
                 {
                     if ((access & vis) == 0 && (classModifiers & vis) > 0)
                     {
-                        string label = "Make " + vis2string[vis];//TODO: localize it
+                        string label = "Make " + vis2string[vis];
                         known.Add(new GeneratorItem(label, vis2job[vis], null, inClass));
                     }
                 }
             }
             if (hasFinal && !isFinal)
             {
-                string label = "Make final";//TODO: localize it
+                string label = "Add final";
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassFinal, null, inClass));
             }
             if (isHaxe && !isExtern)
             {
-                string label = "Make extern";//TODO: localize it
+                string label = "Add extern";
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassExtern, null, inClass));
             }
             if (hasFinal && isFinal)
             {
-                string label = "Make not final";//TODO: localize it
+                string label = "Remove final";
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotFinal, null, inClass));
             }
             if (isHaxe && isExtern)
             {
-                string label = "Make not extern";//TODO: localize it
+                string label = "Remove extern";
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeClassNotExtern, null, inClass));
             }
             CompletionList.Show(known, false);
@@ -415,7 +415,7 @@ namespace AdvancedCodeGenerator
             {
                 if ((access & vis) == 0 && (classModifiers & vis) > 0)
                 {
-                    string label = "Make " + vis2string[vis];//TODO: localize it
+                    string label = "Make " + vis2string[vis];
                     known.Add(new GeneratorItem(label, vis2job[vis], member, null));
                 }
             }
@@ -441,42 +441,42 @@ namespace AdvancedCodeGenerator
             AddChangeMemberModifierItems(known, member, ASContext.Context.Features.methodModifiers);
             if (hasFinal && !isStatic && !isFinal)
             { 
-                string label = "Make final";//TODO: localize it
+                string label = "Add final";
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodFinal, member, null));
             }
             if (hasStatics && !isStatic)
             {
-                string label = "Add static modifier";//TODO: localize it
+                string label = "Add static modifier";
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
             }
             if (hasInline && !isInline)
             {
-                string label = "Add inline modifier";//TODO: localize it
+                string label = "Add inline modifier";
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddInlineModifier, member, null));
             }
             if (hasNoCompletion && !isNoCompletion)
             {
-                string label = "Add @:noCompletion";//TODO: localize it
+                string label = "Add @:noCompletion";
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
             }
             if (hasFinal && !isStatic && isFinal)
             {
-                string label = "Make not final";//TODO: localize it
+                string label = "Remove final";
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeMethodNotFinal, member, null));
             }
             if (hasStatics && isStatic)
             {
-                string label = "Remove static modifier";//TODO: localize it
+                string label = "Remove static modifier";
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
             }
             if (hasInline && isInline)
             {
-                string label = "Remove inline modifier";//TODO: localize it
+                string label = "Remove inline modifier";
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveInlineModifier, member, null));
             }
             if (hasNoCompletion && isNoCompletion)
             {
-                string label = "Remove @:noCompletion";//TODO: localize it
+                string label = "Remove @:noCompletion";
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
             }
             CompletionList.Show(known, false);
@@ -494,22 +494,22 @@ namespace AdvancedCodeGenerator
             AddChangeMemberModifierItems(known, member, ASContext.Context.Features.varModifiers);
             if (hasStatics && !isStatic)
             {
-                string label = "Add static modifier";//TODO: localize it
+                string label = "Add static modifier";
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddStaticModifier, member, null));
             }
             if (hasNoCompletion && !isNoCompletion)
             {
-                string label = "Add @:noCompletion";//TODO: localize it
+                string label = "Add @:noCompletion";
                 known.Add(new GeneratorItem(label, GeneratorJobType.AddNoCompletionMeta, member, null));
             }
             if (hasStatics && isStatic)
             {
-                string label = "Remove static modifier";//TODO: localize it
+                string label = "Remove static modifier";
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveStaticModifier, member, null));
             }
             if (hasNoCompletion && isNoCompletion)
             {
-                string label = "Remove @:noCompletion";//TODO: localize it
+                string label = "Remove @:noCompletion";
                 known.Add(new GeneratorItem(label, GeneratorJobType.RemoveNoCompletionMeta, member, null));
             }
             CompletionList.Show(known, false);
@@ -536,7 +536,7 @@ namespace AdvancedCodeGenerator
             {
                 if ((member.Access & vis) == 0 && (featuresModifiers & vis) > 0)
                 {
-                    string label = "Make " + vis2stringHelper[vis];//TODO: localize it
+                    string label = "Make " + vis2stringHelper[vis];
                     if (isAS)
                     {
                         string text = vis2stringHelper[vis];
@@ -547,7 +547,7 @@ namespace AdvancedCodeGenerator
             }
             foreach (string value in customAccess)
             {
-                string label = "Make " + value;//TODO: localize it
+                string label = "Make " + value;
                 known.Add(new GeneratorItem(label, GeneratorJobType.MakeCustom, member, null, value, Array.IndexOf(settings.ASOrderOfAccessModifiers, value)));
             }
             known.Sort(delegate(ICompletionListItem i1, ICompletionListItem i2) { return (i1 as GeneratorItem).index - (i2 as GeneratorItem).index; });
@@ -592,7 +592,7 @@ namespace AdvancedCodeGenerator
             for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 Match m = Select(line, reMember, Sci);
-                if (!m.Success) continue;
+                if (m == null || !m.Success) continue;
                 Sci.ReplaceSel(modifier + " " + m.Value);
                 return;
             }
@@ -600,7 +600,7 @@ namespace AdvancedCodeGenerator
 
         private static void RemoveModifier(ScintillaNet.ScintillaControl Sci, MemberModel member, string modifier)
         {
-            for(int line = member.LineFrom; line <= member.LineTo; line++)
+            for (int line = member.LineFrom; line <= member.LineTo; line++)
             {
                 if (Select(line, new Regex(modifier + "\\s"), Sci) == null) continue;
                 Sci.ReplaceSel("");
